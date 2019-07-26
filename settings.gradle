@@ -19,4 +19,4 @@
  */
 
 include ':app', ':core', ':utils', ':dashboard'
-rootProject.name='Berry'
+rootProject.name='Melon'

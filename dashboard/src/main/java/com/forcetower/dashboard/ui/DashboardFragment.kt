@@ -24,14 +24,19 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import com.forcetower.dashboard.databinding.FragmentDashboardBinding
 import com.forcetower.utils.BaseFragment
 
 class DashboardFragment : BaseFragment() {
+    private lateinit var binding: FragmentDashboardBinding
+
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View? {
-        return super.onCreateView(inflater, container, savedInstanceState)
+        return FragmentDashboardBinding.inflate(inflater, container, false).also {
+            binding = it
+        }.root
     }
 }

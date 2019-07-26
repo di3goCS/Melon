@@ -19,8 +19,8 @@
  */
 
 apply plugin: 'com.android.dynamic-feature'
-apply plugin: 'kotlin-android-extensions'
 apply plugin: 'kotlin-android'
+apply plugin: 'kotlin-android-extensions'
 apply plugin: 'kotlin-kapt'
 
 android {
@@ -54,6 +54,9 @@ dependencies {
     implementation "androidx.appcompat:appcompat:$appCompat"
     implementation "androidx.core:core-ktx:$ktx"
     implementation "androidx.constraintlayout:constraintlayout:$constraint"
+    implementation "androidx.fragment:fragment-ktx:$fragment"
+    implementation "androidx.fragment:fragment:$fragment"
+
     implementation "com.google.android.material:material:$material"
     implementation "com.jakewharton.timber:timber:$timber"
 }

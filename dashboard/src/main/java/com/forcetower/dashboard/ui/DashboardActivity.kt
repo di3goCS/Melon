@@ -21,6 +21,7 @@
 package com.forcetower.dashboard.ui
 
 import android.os.Bundle
+import androidx.fragment.app.commit
 import com.forcetower.dashboard.R
 import com.forcetower.utils.BaseActivity
 
@@ -28,5 +29,10 @@ class DashboardActivity : BaseActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_dashboard)
+        if (savedInstanceState == null) {
+            supportFragmentManager.commit {
+                replace(R.id.fragment_container, DashboardFragment())
+            }
+        }
     }
 }
