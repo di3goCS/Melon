@@ -1,0 +1,43 @@
+/*
+ * This file is part of the UNES Open Source Project.
+ * UNES is licensed under the GNU GPLv3.
+ *
+ * Copyright (c) 2019. João Paulo Sena <joaopaulo761@gmail.com>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+
+package com.forcetower.database.portal.dao
+
+import androidx.room.Delete
+import androidx.room.Insert
+import androidx.room.OnConflictStrategy
+import androidx.room.Update
+
+abstract class BaseDao<T> {
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    abstract suspend fun insert(value: T)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    abstract suspend fun insertMultiple(values: List<T>)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    abstract suspend fun insertMultiple(values: Array<T>)
+
+    @Update(onConflict = OnConflictStrategy.REPLACE)
+    abstract suspend fun update(value: T)
+
+    @Delete
+    abstract suspend fun delete(value: T)
+}

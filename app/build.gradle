@@ -51,16 +51,13 @@ android {
         enabled true
     }
 
-
     dynamicFeatures = [":dashboard"]
-
-
 }
 
 dependencies {
     implementation fileTree(dir: 'libs', include: ['*.jar'])
-    implementation project(path: ':core')
-    implementation project(path: ':utils')
+    implementation project(':core')
+    implementation project(':utils')
 
     testImplementation "junit:junit:4.12"
     androidTestImplementation "androidx.test.ext:junit:1.1.1"
@@ -81,4 +78,6 @@ dependencies {
 
     implementation "org.jetbrains.kotlinx:kotlinx-coroutines-core:$coroutines"
     implementation "org.jetbrains.kotlinx:kotlinx-coroutines-android:$coroutines"
+
+    compileOnly 'com.github.forcetower:juice:0.1.0'
 }
