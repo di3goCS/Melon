@@ -1,3 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
 <!--
   ~ This file is part of the UNES Open Source Project.
   ~ UNES is licensed under the GNU GPLv3.
@@ -18,7 +19,8 @@
   ~ along with this program.  If not, see <https://www.gnu.org/licenses/>.
   -->
 
-<resources>
-    <string name="app_name">Berry</string>
-    <string name="title_dashboard">Dashboard</string>
-</resources>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:orientation="vertical" android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+</LinearLayout>

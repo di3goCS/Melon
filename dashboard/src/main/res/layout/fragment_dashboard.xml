@@ -61,7 +61,7 @@
                     android:id="@+id/image_user"
                     android:layout_width="36dp"
                     android:layout_height="36dp"
-                    android:contentDescription="Opções do Perfil"
+                    android:contentDescription="@string/accessibility_profile_options"
                     app:layout_constraintBottom_toBottomOf="parent"
                     app:layout_constraintEnd_toEndOf="parent"
                     app:layout_constraintTop_toTopOf="parent"

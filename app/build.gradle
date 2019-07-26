@@ -50,6 +50,11 @@ android {
     dataBinding {
         enabled true
     }
+
+
+    dynamicFeatures = [":dashboard"]
+
+
 }
 
 dependencies {

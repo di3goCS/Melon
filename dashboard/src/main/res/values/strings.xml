@@ -1,3 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
 <!--
   ~ This file is part of the UNES Open Source Project.
   ~ UNES is licensed under the GNU GPLv3.
@@ -19,6 +20,5 @@
   -->
 
 <resources>
-    <string name="app_name">Berry</string>
-    <string name="title_dashboard">Dashboard</string>
+    <string name="accessibility_profile_options">Opções do Perfil</string>
 </resources>

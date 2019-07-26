@@ -18,10 +18,10 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-package com.forcetower.berry.ui
+package com.forcetower.dashboard.ui
 
 import android.os.Bundle
-import com.forcetower.berry.R
+import com.forcetower.dashboard.R
 import com.forcetower.utils.BaseActivity
 
 class DashboardActivity : BaseActivity() {
