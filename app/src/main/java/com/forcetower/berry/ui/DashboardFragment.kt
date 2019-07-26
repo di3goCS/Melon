@@ -21,12 +21,17 @@
 package com.forcetower.berry.ui
 
 import android.os.Bundle
-import com.forcetower.berry.R
-import com.forcetower.utils.BaseActivity
+import android.view.LayoutInflater
+import android.view.View
+import android.view.ViewGroup
+import com.forcetower.utils.BaseFragment
 
-class HomeActivity : BaseActivity() {
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_home)
+class DashboardFragment : BaseFragment() {
+    override fun onCreateView(
+        inflater: LayoutInflater,
+        container: ViewGroup?,
+        savedInstanceState: Bundle?
+    ): View? {
+        return super.onCreateView(inflater, container, savedInstanceState)
     }
 }

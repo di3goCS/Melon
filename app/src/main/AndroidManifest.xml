@@ -51,7 +51,7 @@
 
         <activity android:name=".LauncherActivity"/>
 
-        <activity android:name=".ui.HomeActivity">
+        <activity android:name=".ui.DashboardActivity">
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
             </intent-filter>
