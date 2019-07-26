@@ -78,6 +78,4 @@ dependencies {
 
     implementation "org.jetbrains.kotlinx:kotlinx-coroutines-core:$coroutines"
     implementation "org.jetbrains.kotlinx:kotlinx-coroutines-android:$coroutines"
-
-    compileOnly 'com.github.forcetower:juice:0.1.0'
 }
