@@ -2,7 +2,7 @@
  * This file is part of the UNES Open Source Project.
  * UNES is licensed under the GNU GPLv3.
  *
- * Copyright (c) 2019.  João Paulo Sena <joaopaulo761@gmail.com>
+ * Copyright (c) 2019. João Paulo Sena <joaopaulo761@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,190 +20,60 @@
 
 apply plugin: 'com.android.application'
 apply plugin: 'kotlin-android'
-apply plugin: 'kotlin-kapt'
 apply plugin: 'kotlin-android-extensions'
-apply plugin: 'androidx.navigation.safeargs'
-apply plugin: 'io.fabric'
-apply plugin: 'org.jmailen.kotlinter'
-apply plugin: 'com.github.triplet.play'
+apply plugin: 'kotlin-kapt'
+apply plugin: 'androidx.navigation.safeargs.kotlin'
 
 android {
-    compileSdkVersion build_versions.target_sdk
-    buildToolsVersion build_versions.build_tools
-
+    compileSdkVersion rootProject.compileSdkVersion
     defaultConfig {
-        applicationId 'com.forcetower.uefs'
-        minSdkVersion build_versions.min_sdk
-        targetSdkVersion build_versions.target_sdk
-        def (code, name) = buildVersion()
-        versionCode code
-        versionName name
-        multiDexEnabled true
-
-        buildConfigField "String", "SIECOMP_TIMEZONE", "\"America/Bahia\""
-        buildConfigField "String", "SIECOMP_DAY1_START", "\"2019-03-14T08:00:00-03:00\""
-        buildConfigField "String", "SIECOMP_DAY1_END", "\"2019-03-14T17:30:00-03:00\""
-        buildConfigField "String", "SIECOMP_DAY2_START", "\"2019-03-15T08:00:00-03:00\""
-        buildConfigField "String", "SIECOMP_DAY2_END", "\"2019-03-15T17:30:00-03:00\""
-        buildConfigField "String", "SIECOMP_DAY3_START", "\"2019-03-18T08:00:00-03:00\""
-        buildConfigField "String", "SIECOMP_DAY3_END", "\"2019-03-18T17:30:00-03:00\""
-        buildConfigField "String", "SIECOMP_DAY4_START", "\"2019-03-19T08:00:00-03:00\""
-        buildConfigField "String", "SIECOMP_DAY4_END", "\"2019-03-19T17:30:00-03:00\""
-        buildConfigField "String", "SIECOMP_DAY5_START", "\"2019-03-20T08:00:00-03:00\""
-        buildConfigField "String", "SIECOMP_DAY5_END", "\"2019-03-20T17:30:00-03:00\""
-
-        javaCompileOptions {
-            annotationProcessorOptions {
-                arguments = ["room.schemaLocation": "$projectDir/schemas".toString()]
-            }
-        }
-
-        ndk {
-            abiFilters "arm64-v8a", "armeabi", "armeabi-v7a", "mips", "mips64", "x86", "x86_64"
-        }
+        applicationId "com.forcetower.berry"
+        minSdkVersion rootProject.minSdkVersion
+        targetSdkVersion rootProject.targetSdkVersion
+        versionCode 1
+        versionName "1.0"
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
-
-    signingConfigs {
-        release {
-            storeFile rootProject.file("sign.jks")
-            storePassword System.getenv("UNES_KEYSTORE_PASSWORD")
-            keyAlias System.getenv("UNES_KEYSTORE_ALIAS")
-            keyPassword System.getenv("UNES_KEYSTORE_PRIVATE_KEY_PASSWORD")
-        }
-        debug {
-            storeFile rootProject.file("debug.keystore")
-            storePassword "android"
-            keyAlias "androiddebugkey"
-            keyPassword "android"
-        }
-    }
-
     buildTypes {
         release {
-            signingConfig signingConfigs.release
-            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
-            shrinkResources true
-            minifyEnabled true
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }
-
-    dataBinding {
-        enabled true
-    }
-
-    kapt {
-        correctErrorTypes true
-        javacOptions {
-            option("-Xmaxerrs", 1000)
-        }
-    }
-
     compileOptions {
         targetCompatibility JavaVersion.VERSION_1_8
         sourceCompatibility JavaVersion.VERSION_1_8
     }
-
     kotlinOptions {
         jvmTarget = "1.8"
     }
-
-    lintOptions {
-        disable 'MissingTranslation'
-        disable 'InvalidPackage'
-        abortOnError true
+    dataBinding {
+        enabled true
     }
-}
-
-play {
-    serviceAccountCredentials rootProject.file("unes_uefs_publisher.json")
-    track "internal"
-    defaultToAppBundles true
-}
-
-kotlinter {
-    allowWildcardImports false
 }
 
 dependencies {
     implementation fileTree(dir: 'libs', include: ['*.jar'])
+    implementation project(path: ':core')
+    implementation project(path: ':utils')
 
-    implementation deps.kotlin.stdlib
+    testImplementation "junit:junit:4.12"
+    androidTestImplementation "androidx.test.ext:junit:1.1.1"
+    androidTestImplementation "androidx.test.espresso:espresso-core:3.2.0"
 
-    implementation deps.androidx.ktx
-    implementation deps.androidx.annotations
-    implementation deps.androidx.app_compat
-    implementation deps.androidx.constraint_layout
-    implementation deps.androidx.google_material
-    implementation deps.androidx.pallete
-    implementation deps.androidx.browser
-    implementation deps.androidx.preference
-    implementation deps.androidx.flexbox
+    implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlin_version"
+    implementation "androidx.appcompat:appcompat:$appCompat"
+    implementation "androidx.core:core-ktx:$ktx"
+    implementation "androidx.constraintlayout:constraintlayout:$constraint"
+    implementation "com.google.android.material:material:$material"
+    implementation "com.jakewharton.timber:timber:$timber"
+    implementation "androidx.navigation:navigation-fragment-ktx:$nav_version"
+    implementation "androidx.navigation:navigation-ui-ktx:$nav_version"
 
-    implementation deps.lifecycle.extensions
-    implementation deps.lifecycle.java8
-    kapt deps.lifecycle.compiler
+    implementation "androidx.lifecycle:lifecycle-viewmodel-ktx:$lifecycle_version"
+    implementation "androidx.lifecycle:lifecycle-extensions:$lifecycle_version"
+    implementation "androidx.lifecycle:lifecycle-common-java8:$lifecycle_version"
 
-    implementation deps.navigation.ui
-    implementation deps.navigation.ui_ktx
-    implementation deps.navigation.fragment
-    implementation deps.navigation.fragment_ktx
-
-    implementation deps.paging
-
-    implementation deps.room.runtime
-    kapt deps.room.compiler
-
-    implementation deps.work_manager.runtime
-    implementation deps.work_manager.runtime_ktx
-    implementation deps.work_manager.gcm
-
-    implementation deps.dagger.runtime
-    kapt deps.dagger.compiler
-    implementation deps.dagger.android
-    implementation deps.dagger.android_support
-    kapt deps.dagger.android_support_compiler
-
-    implementation deps.firebase.core
-    implementation deps.firebase.auth
-    implementation deps.firebase.messaging
-    implementation deps.firebase.firestore
-    implementation deps.firebase.storage
-    implementation deps.firebase.storage_ui
-    implementation deps.firebase.remote_config
-    implementation deps.firebase.functions
-
-    implementation(deps.logs.crashlytics) { transitive true }
-    implementation deps.logs.timber
-
-    implementation deps.play.games
-    implementation deps.play.auth
-    implementation deps.play.location
-    implementation deps.play.billing
-    implementation deps.play.admob
-    implementation deps.play.core
-
-    implementation deps.network.okhttp
-    implementation deps.network.retrofit
-    implementation deps.network.retrofit_gson
-    implementation deps.network.cookie_jar
-
-    implementation deps.image.glide_runtime
-    kapt deps.image.glide_compiler
-    implementation deps.image.lottie
-    implementation deps.image.image_cropper
-
-    implementation deps.others.gson
-    implementation deps.others.jsoup
-    implementation deps.others.chart_view
-    implementation deps.others.about_libraries
-    implementation deps.others.easy_permissions
-    implementation deps.others.card_slider
-    implementation deps.others.date_time_picker
-    implementation deps.others.floating_search
-    api deps.others.zoned_time_date
-
-    implementation project(path: ':sagres')
-    implementation project(path: ':bypass')
+    implementation "org.jetbrains.kotlinx:kotlinx-coroutines-core:$coroutines"
+    implementation "org.jetbrains.kotlinx:kotlinx-coroutines-android:$coroutines"
 }
-
-apply plugin: 'com.google.gms.google-services'
