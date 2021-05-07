@@ -2,7 +2,7 @@
  * This file is part of the UNES Open Source Project.
  * UNES is licensed under the GNU GPLv3.
  *
- * Copyright (c) 2019.  João Paulo Sena <joaopaulo761@gmail.com>
+ * Copyright (c) 2020. João Paulo Sena <joaopaulo761@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -24,23 +24,25 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MediatorLiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
+import com.forcetower.core.lifecycle.Event
 import com.forcetower.uefs.core.model.siecomp.Session
 import com.forcetower.uefs.core.model.siecomp.Speaker
 import com.forcetower.uefs.core.model.siecomp.Tag
 import com.forcetower.uefs.core.storage.repository.SIECOMPRepository
-import com.forcetower.uefs.core.vm.Event
 import com.forcetower.uefs.feature.shared.SetIntervalLiveData
 import com.forcetower.uefs.feature.shared.extensions.map
 import com.forcetower.uefs.feature.shared.extensions.setValueIfNew
 import com.forcetower.uefs.feature.siecomp.common.SpeakerActions
-import org.threeten.bp.Duration
-import org.threeten.bp.Instant
-import org.threeten.bp.ZoneId
+import dagger.hilt.android.lifecycle.HiltViewModel
 import timber.log.Timber
+import java.time.Duration
+import java.time.Instant
+import java.time.ZoneId
 import javax.inject.Inject
 
 private const val TEN_SECONDS = 10_000L
 
+@HiltViewModel
 class SIECOMPSessionViewModel @Inject constructor(
     private val repository: SIECOMPRepository
 ) : ViewModel(), SpeakerActions {

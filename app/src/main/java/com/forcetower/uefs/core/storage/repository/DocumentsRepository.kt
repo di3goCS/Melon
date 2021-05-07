@@ -2,7 +2,7 @@
  * This file is part of the UNES Open Source Project.
  * UNES is licensed under the GNU GPLv3.
  *
- * Copyright (c) 2019.  João Paulo Sena <joaopaulo761@gmail.com>
+ * Copyright (c) 2020. João Paulo Sena <joaopaulo761@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -57,48 +57,62 @@ class DocumentsRepository @Inject constructor(
 
             val enroll = File(folder, Document.ENROLLMENT.value).exists()
             database.documentDao().updateDownloaded(enroll, Document.ENROLLMENT.value)
+            database.documentDao().updateDownloading(false, Document.ENROLLMENT.value)
             val flow = File(folder, Document.FLOWCHART.value).exists()
             database.documentDao().updateDownloaded(flow, Document.FLOWCHART.value)
+            database.documentDao().updateDownloading(false, Document.FLOWCHART.value)
             val hist = File(folder, Document.HISTORY.value).exists()
             database.documentDao().updateDownloaded(hist, Document.HISTORY.value)
+            database.documentDao().updateDownloading(false, Document.HISTORY.value)
         }
     }
 
     fun getDocuments() = database.documentDao().getDocuments()
 
     @AnyThread
-    fun downloadDocument(document: Document): LiveData<Resource<SagresDocument>> {
+    fun downloadDocument(document: Document, gtoken: String?): LiveData<Resource<SagresDocument>> {
         val data = MutableLiveData<Resource<SagresDocument>>()
-        executor.networkIO().execute { download(data, document) }
+        executor.networkIO().execute { download(data, document, gtoken) }
         return data
     }
 
     @WorkerThread
-    private fun download(data: MutableLiveData<Resource<SagresDocument>>?, document: Document) {
+    private fun download(data: MutableLiveData<Resource<SagresDocument>>, document: Document, gtoken: String?) {
         val access = database.accessDao().getAccessDirect()
         if (access == null) {
-            data?.postValue(Resource.error("Access is null", 700, Exception("No Access")))
+            data.postValue(Resource.error("Access is null", 700, Exception("No Access")))
         } else {
             database.documentDao().updateDownloading(true, document.value)
-            val login = SagresNavigator.instance.login(access.username, access.password)
+            val login = SagresNavigator.instance.login(access.username, access.password, gtoken)
+
             if (login.status == Status.INVALID_LOGIN) {
                 Timber.d("Login failed. Login status is: ${login.status}")
-                data?.postValue(Resource.error("Login Failed", 800, Exception("Login Failed")))
+                database.documentDao().updateDownloading(false, document.value)
+                data.postValue(Resource.error("Login Failed", 800, Exception("Login Failed")))
             } else {
                 val response = when (document) {
                     Document.ENROLLMENT -> SagresNavigator.instance.downloadEnrollment(File(folder, document.value))
                     Document.FLOWCHART -> SagresNavigator.instance.downloadFlowchart(File(folder, document.value))
                     Document.HISTORY -> SagresNavigator.instance.downloadHistory(File(folder, document.value))
                 }
-                database.documentDao().updateDownloading(false, document.value)
-                database.documentDao().updateDownloaded(File(folder, document.value).exists(), document.value)
+                Timber.d("Response message ${response.message}")
+                Timber.d(response.throwable, "Hum...")
+
+                database.documentDao().run {
+                    updateDownloading(false, document.value)
+                    updateDownloaded(File(folder, document.value).exists(), document.value)
+                    if (response.status == Status.SUCCESS) {
+                        updateDate(System.currentTimeMillis(), document.value)
+                    }
+                }
 
                 Timber.d("Response Document Result: ${response.status}")
                 val value = database.documentDao().getDocumentDirect(document.value)
                 if (response.status == Status.SUCCESS) {
-                    data?.postValue(Resource.success(value))
+                    data.postValue(Resource.success(value))
                 } else {
-                    data?.postValue(Resource.error(response.message ?: "Generic error", response.code, null))
+                    database.documentDao().updateDownloading(false, document.value)
+                    data.postValue(Resource.error(response.message ?: "Generic error", response.code, null))
                 }
             }
         }

@@ -2,7 +2,7 @@
  * This file is part of the UNES Open Source Project.
  * UNES is licensed under the GNU GPLv3.
  *
- * Copyright (c) 2019.  João Paulo Sena <joaopaulo761@gmail.com>
+ * Copyright (c) 2020. João Paulo Sena <joaopaulo761@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -33,15 +33,10 @@ import com.forcetower.uefs.core.util.VersionUtils
 import com.forcetower.uefs.databinding.ActivitySettingsBinding
 import com.forcetower.uefs.feature.shared.UActivity
 import com.forcetower.uefs.feature.shared.extensions.inTransaction
-import dagger.android.DispatchingAndroidInjector
-import dagger.android.support.HasSupportFragmentInjector
-import javax.inject.Inject
+import dagger.hilt.android.AndroidEntryPoint
 
-class SettingsActivity : UActivity(), HasSupportFragmentInjector,
-        PreferenceFragmentCompat.OnPreferenceStartFragmentCallback {
-    @Inject
-    lateinit var fragmentInjector: DispatchingAndroidInjector<Fragment>
-
+@AndroidEntryPoint
+class SettingsActivity : UActivity(), PreferenceFragmentCompat.OnPreferenceStartFragmentCallback {
     private lateinit var binding: ActivitySettingsBinding
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -59,11 +54,16 @@ class SettingsActivity : UActivity(), HasSupportFragmentInjector,
                 add(R.id.fragment_container, RootSettingsFragment())
             }
         }
+
+        when (intent.getIntExtra("move_to_screen", -1)) {
+            0 -> navigateTo(SyncSettingsFragment())
+            2 -> navigateTo(AccountSettingsFragment())
+            3 -> navigateTo(AdvancedSettingsFragment())
+        }
     }
 
     override fun onPreferenceStartFragment(caller: PreferenceFragmentCompat?, pref: Preference?): Boolean {
-        val key = pref?.key ?: return false
-        when (key) {
+        when (pref?.key ?: return false) {
             "settings_synchronization" -> navigateTo(SyncSettingsFragment())
             "settings_notifications" -> {
                 if (VersionUtils.isOreo()) {
@@ -75,6 +75,7 @@ class SettingsActivity : UActivity(), HasSupportFragmentInjector,
                 }
             }
             "settings_account" -> navigateTo(AccountSettingsFragment())
+            "settings_advanced" -> navigateTo(AdvancedSettingsFragment())
         }
         return true
     }
@@ -85,8 +86,6 @@ class SettingsActivity : UActivity(), HasSupportFragmentInjector,
             addToBackStack(null)
         }
     }
-
-    override fun supportFragmentInjector() = fragmentInjector
 
     companion object {
         fun startIntent(context: Context): Intent {

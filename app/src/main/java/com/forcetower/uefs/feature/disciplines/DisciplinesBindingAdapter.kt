@@ -2,7 +2,7 @@
  * This file is part of the UNES Open Source Project.
  * UNES is licensed under the GNU GPLv3.
  *
- * Copyright (c) 2019.  João Paulo Sena <joaopaulo761@gmail.com>
+ * Copyright (c) 2020. João Paulo Sena <joaopaulo761@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -26,22 +26,25 @@ import androidx.databinding.BindingAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.forcetower.uefs.R
 import com.forcetower.uefs.core.model.unes.Grade
-import com.forcetower.uefs.core.storage.database.accessors.ClassWithGroups
+import com.forcetower.uefs.core.storage.database.aggregation.ClassFullWithGroup
 import com.forcetower.uefs.core.util.round
 import com.forcetower.uefs.feature.common.DisciplineActions
 import com.forcetower.uefs.feature.grades.ClassGroupGradesAdapter
 import com.forcetower.uefs.widget.CircleProgressBar
 import timber.log.Timber
+import java.time.OffsetDateTime
+import java.time.format.DateTimeFormatter
+import kotlin.math.max
 
 @BindingAdapter(value = ["disciplineGroupsGrades", "disciplineListener"], requireAll = false)
 fun disciplineGroupsGrades(recycler: RecyclerView, classes: List<Grade>?, listener: DisciplineActions?) {
-    val sort = classes?.sortedWith(Comparator { one, two ->
+    val sort = classes?.sortedWith { one, two ->
         when {
             one.name.trim().equals("prova final", ignoreCase = true) -> 1
             two.name.trim().equals("prova final", ignoreCase = true) -> -1
             else -> one.name.compareTo(two.name)
         }
-    })
+    }
 
     val adapter: ClassGroupGradesAdapter
     if (recycler.adapter == null) {
@@ -55,7 +58,7 @@ fun disciplineGroupsGrades(recycler: RecyclerView, classes: List<Grade>?, listen
 }
 
 @BindingAdapter("classStudentGrade")
-fun classStudentGrade(cpb: CircleProgressBar, clazz: ClassWithGroups?) {
+fun classStudentGrade(cpb: CircleProgressBar, clazz: ClassFullWithGroup?) {
     val value = clazz?.clazz?.finalScore
     if (value == null) {
         cpb.setProgress(0.0f)
@@ -64,8 +67,32 @@ fun classStudentGrade(cpb: CircleProgressBar, clazz: ClassWithGroups?) {
     }
 }
 
+@BindingAdapter("gradeFormat")
+fun gradeFormat(tv: TextView, value: Grade?) {
+    val grade = value?.gradeDouble()
+    if (grade == null) {
+        tv.text = tv.context.getString(R.string.grade_not_published)
+    } else {
+        tv.text = tv.context.getString(R.string.grade_format, grade.toFloat())
+    }
+}
+
+@BindingAdapter("evaluationDate")
+fun evaluationDate(tv: TextView, value: Grade?) {
+    val date = value?.date
+    if (date == null) {
+        tv.text = tv.context.getString(R.string.grade_date_unknown)
+    } else {
+        try {
+            tv.text = OffsetDateTime.parse(date).format(DateTimeFormatter.ofPattern("dd/MM/YYYY"))
+        } catch (error: Throwable) {
+            tv.text = date
+        }
+    }
+}
+
 @BindingAdapter("classStudentGrade")
-fun classStudentGrade(tv: TextView, clazz: ClassWithGroups?) {
+fun classStudentGrade(tv: TextView, clazz: ClassFullWithGroup?) {
     val value = clazz?.clazz?.finalScore
     if (value == null) {
         tv.text = "??"
@@ -75,7 +102,7 @@ fun classStudentGrade(tv: TextView, clazz: ClassWithGroups?) {
 }
 
 @BindingAdapter("gradeNeededInFinal")
-fun gradeNeededInFinal(tv: TextView, clazz: ClassWithGroups?) {
+fun gradeNeededInFinal(tv: TextView, clazz: ClassFullWithGroup?) {
     val value = clazz?.clazz?.partialScore
     if (value == null) {
         tv.text = "??"
@@ -85,7 +112,7 @@ fun gradeNeededInFinal(tv: TextView, clazz: ClassWithGroups?) {
     }
 }
 
-fun getClassWithGroupsGrade(clazz: ClassWithGroups): Double? {
+fun getClassWithGroupsGrade(clazz: ClassFullWithGroup): Double? {
     if (clazz.groups.isNotEmpty()) {
         return clazz.clazz.finalScore
     }
@@ -97,19 +124,31 @@ fun classAbsence(tv: TextView, desc: String?, date: String?) {
     tv.text = tv.context.getString(R.string.discipline_absence_item_format, desc ?: tv.context.getString(R.string.not_registed), date ?: tv.context.getString(R.string.not_registed))
 }
 
-@BindingAdapter(value = ["absences", "credits"], requireAll = true)
-fun totalAbsence(tv: TextView, absences: Int?, credits: Int?) {
+@BindingAdapter(value = ["absences", "absencesListSize", "credits"], requireAll = true)
+fun totalAbsence(tv: TextView, absences: Int?, absencesListSize: Int?, credits: Int?) {
     val context = tv.context
-    if (absences == null || credits == null || credits == 0) {
+    val absenceCount = max(absences ?: 0, absencesListSize ?: 0)
+    if ((absences == null && absencesListSize == null) || credits == null || credits == 0) {
         tv.text = context.getString(R.string.discipline_credits_undefined)
     } else {
         Timber.d("Credits: $credits __ Absence: $absences")
-        val left = (credits / 4) - absences
+        val left = (credits / 4) - absenceCount
         when {
             left > 0 -> tv.text = context.getString(R.string.discipline_absence_left, left)
             left == 0 -> tv.text = context.getString(R.string.you_cant_miss_a_class)
             else -> tv.text = context.getString(R.string.you_missed_to_many_classes)
         }
+    }
+}
+
+@BindingAdapter(value = ["absenceCount", "absenceAmount"], requireAll = true)
+fun absenceCount(tv: TextView, absenceCount: Int?, absenceAmount: Int?) {
+    val context = tv.context
+    val count = max(absenceCount ?: 0, absenceAmount ?: 0)
+    if (absenceCount == null && absenceAmount == null) {
+        tv.text = context.getString(R.string.discipline_credits_undefined)
+    } else {
+        tv.text = context.getString(R.string.integer_format, count)
     }
 }
 
@@ -141,7 +180,13 @@ fun disciplineAbsence(tv: TextView, sequence: Int?, date: String?) {
     val seq = sequence ?: 0
     val dat = date ?: "??/??/????"
 
-    val text = ctx.getString(R.string.discipline_absence_date_format, seq, dat)
+    val dated = try {
+        OffsetDateTime.parse(dat).format(DateTimeFormatter.ofPattern("dd/MM/YYYY"))
+    } catch (error: Throwable) {
+        dat
+    }
+
+    val text = ctx.getString(R.string.discipline_absence_date_format, seq, dated)
     tv.text = text
 }
 
@@ -150,4 +195,10 @@ fun absenceDescription(tv: TextView, description: String?) {
     val desc = description ?: "CL 2 - ????"
     val text = desc.substring(desc.indexOf("-") + 1).trim()
     tv.text = text
+}
+
+@BindingAdapter(value = ["disciplineStartsAtText", "disciplineEndsAtText"])
+fun disciplineStartEndGenerator(tv: TextView, startsAt: String?, endsAt: String?) {
+    val context = tv.context
+    tv.text = context.getString(R.string.discipline_start_end_format, startsAt, endsAt)
 }

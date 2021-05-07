@@ -2,7 +2,7 @@
  * This file is part of the UNES Open Source Project.
  * UNES is licensed under the GNU GPLv3.
  *
- * Copyright (c) 2019.  João Paulo Sena <joaopaulo761@gmail.com>
+ * Copyright (c) 2020. João Paulo Sena <joaopaulo761@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,6 +22,7 @@ package com.forcetower.uefs.easter.twofoureight.view
 
 import timber.log.Timber
 import java.util.UUID
+import kotlin.math.pow
 
 /**
  * Created by João Paulo on 02/06/2018.
@@ -48,19 +49,19 @@ class Game {
     private var mGameStateListener: GameStateListener? = null
 
     private val isGameWon: Boolean
-        get() = gameState == State.WON || gameState == State.ENLESS_WON
+        get() = gameState == State.WON || gameState == State.ENDLESS_WON
 
     val isGameOnGoing: Boolean
-        get() = gameState != State.WON && gameState != State.LOST && gameState != State.ENLESS_WON
+        get() = gameState != State.WON && gameState != State.LOST && gameState != State.ENDLESS_WON
 
     val isEndlessMode: Boolean
-        get() = gameState == State.ENDLESS || gameState == State.ENLESS_WON
+        get() = gameState == State.ENDLESS || gameState == State.ENDLESS_WON
 
     private val isMovePossible: Boolean
         get() = gameGrid!!.isCellsAvailable || tileMatchesAvailable()
 
     enum class State {
-        NORMAL, WON, LOST, ENDLESS, ENLESS_WON
+        NORMAL, WON, LOST, ENDLESS, ENDLESS_WON
     }
 
     interface ScoreListener {
@@ -98,7 +99,7 @@ class Game {
             saveUndoState()
             gameGrid!!.clearGrid()
         }
-        endingMaxValue = Math.pow(2.0, (mTileTypes - 1).toDouble()).toInt()
+        endingMaxValue = 2.0.pow((mTileTypes - 1).toDouble()).toInt()
         mView!!.updateGrid(gameGrid!!)
 
         updateScore(0)
@@ -228,7 +229,7 @@ class Game {
                         // The mighty 2048 tile
                         if (merged.value >= winValue() && !isGameWon) {
                             when (gameState) {
-                                State.ENDLESS -> updateGameState(State.ENLESS_WON)
+                                State.ENDLESS -> updateGameState(State.ENDLESS_WON)
                                 State.NORMAL -> updateGameState(State.WON)
                                 else -> throw RuntimeException("Can't move into win state")
                             }

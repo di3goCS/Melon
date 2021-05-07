@@ -2,7 +2,7 @@
  * This file is part of the UNES Open Source Project.
  * UNES is licensed under the GNU GPLv3.
  *
- * Copyright (c) 2019.  João Paulo Sena <joaopaulo761@gmail.com>
+ * Copyright (c) 2020. João Paulo Sena <joaopaulo761@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -25,26 +25,34 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MediatorLiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.asLiveData
+import com.forcetower.core.lifecycle.Event
 import com.forcetower.uefs.architecture.service.discipline.DisciplineDetailsLoaderService
 import com.forcetower.uefs.core.model.unes.Class
 import com.forcetower.uefs.core.model.unes.ClassAbsence
 import com.forcetower.uefs.core.model.unes.ClassGroup
 import com.forcetower.uefs.core.model.unes.ClassItem
+import com.forcetower.uefs.core.model.unes.ClassLocation
 import com.forcetower.uefs.core.model.unes.ClassMaterial
-import com.forcetower.uefs.core.storage.database.accessors.ClassFullWithGroup
-import com.forcetower.uefs.core.storage.database.accessors.ClassWithGroups
+import com.forcetower.uefs.core.storage.database.aggregation.ClassFullWithGroup
+import com.forcetower.uefs.core.storage.repository.DisciplineDetailsRepository
 import com.forcetower.uefs.core.storage.repository.DisciplinesRepository
 import com.forcetower.uefs.core.storage.repository.SagresGradesRepository
-import com.forcetower.uefs.core.vm.Event
 import com.forcetower.uefs.feature.common.DisciplineActions
 import com.forcetower.uefs.feature.disciplines.disciplinedetail.classes.ClassesActions
 import com.forcetower.uefs.feature.shared.extensions.setValueIfNew
+import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
 import timber.log.Timber
 import javax.inject.Inject
+import javax.inject.Named
 
+@HiltViewModel
 class DisciplineViewModel @Inject constructor(
     private val repository: DisciplinesRepository,
-    private val grades: SagresGradesRepository
+    private val grades: SagresGradesRepository,
+    private val detailsRepository: DisciplineDetailsRepository,
+    @Named("flagSnowpiercerEnabled") private val snowpiercerEnabled: Boolean
 ) : ViewModel(), DisciplineActions, MaterialActions, ClassesActions {
 
     val semesters by lazy { repository.getParticipatingSemesters() }
@@ -77,12 +85,16 @@ class DisciplineViewModel @Inject constructor(
     val classItems: LiveData<List<ClassItem>>
         get() = _classItems
 
+    private val _schedule = MediatorLiveData<List<ClassLocation>>()
+    val schedule: LiveData<List<ClassLocation>>
+        get() = _schedule
+
     private val _loadClassDetails = MediatorLiveData<Boolean>()
     val loadClassDetails: LiveData<Boolean>
         get() = _loadClassDetails
 
-    private val _navigateToDisciplineAction = MutableLiveData<Event<ClassWithGroups>>()
-    val navigateToDisciplineAction: LiveData<Event<ClassWithGroups>>
+    private val _navigateToDisciplineAction = MutableLiveData<Event<ClassFullWithGroup>>()
+    val navigateToDisciplineAction: LiveData<Event<ClassFullWithGroup>>
         get() = _navigateToDisciplineAction
 
     private val _navigateToGroupAction = MutableLiveData<Event<ClassGroup>>()
@@ -121,9 +133,17 @@ class DisciplineViewModel @Inject constructor(
         _classItems.addSource(classGroupId) {
             refreshClassItems(it)
         }
+        _schedule.addSource(classId) {
+            refreshSchedule(it)
+        }
+
         _loadClassDetails.addSource(classGroupId) {
             if (it != null) {
-                val src = repository.loadClassDetails(it)
+                val src = if (snowpiercerEnabled) {
+                    repository.loadClassDetailsSnowflake(it).asLiveData(Dispatchers.IO)
+                } else {
+                    repository.loadClassDetails(it)
+                }
                 _loadClassDetails.addSource(src) { loading ->
                     _loadClassDetails.value = loading
                 }
@@ -136,6 +156,14 @@ class DisciplineViewModel @Inject constructor(
                     _group.value = value?.group
                 }
             }
+        }
+    }
+
+    private fun refreshSchedule(classId: Long?) {
+        classId ?: return
+        val source = repository.getLocationsFromClass(classId)
+        _schedule.addSource(source) { value ->
+            _schedule.value = value
         }
     }
 
@@ -192,7 +220,7 @@ class DisciplineViewModel @Inject constructor(
         this.classId.setValueIfNew(classId)
     }
 
-    override fun classClicked(clazz: ClassWithGroups) {
+    override fun classClicked(clazz: ClassFullWithGroup) {
         _navigateToDisciplineAction.value = Event(clazz)
     }
 
@@ -210,7 +238,7 @@ class DisciplineViewModel @Inject constructor(
         if (_refreshing.value == null || _refreshing.value == false) {
             Timber.d("Something will actually happen")
             _refreshing.value = true
-            val result = grades.getGradesAsync(semesterId, true)
+            val result = grades.getGradesAsync(semesterId, false)
             _refreshing.addSource(result) {
                 _refreshing.removeSource(result)
                 if (it == SagresGradesRepository.SUCCESS) {
@@ -245,5 +273,14 @@ class DisciplineViewModel @Inject constructor(
     override fun onClassItemClicked(classItem: ClassItem?) {
         classItem ?: return
         _classItemClick.value = Event(classItem)
+    }
+
+    fun updateLocationVisibility(location: ClassLocation) {
+        val hideStatus = !location.hiddenOnSchedule
+        repository.updateLocationVisibilityAsync(location.uid, hideStatus)
+    }
+
+    fun prepareAndSendStats() {
+        detailsRepository.contributeCurrent()
     }
 }

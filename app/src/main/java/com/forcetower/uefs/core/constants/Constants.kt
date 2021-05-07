@@ -2,7 +2,7 @@
  * This file is part of the UNES Open Source Project.
  * UNES is licensed under the GNU GPLv3.
  *
- * Copyright (c) 2019.  João Paulo Sena <joaopaulo761@gmail.com>
+ * Copyright (c) 2020. João Paulo Sena <joaopaulo761@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,9 +22,9 @@ package com.forcetower.uefs.core.constants
 
 object Constants {
     const val SELECTED_INSTITUTION_KEY = "selected_institution_worker"
-    const val UNES_SERVICE_BASE_URL = "unes-env.frarj7zp5x.us-east-2.elasticbeanstalk.com"
+    const val UNES_SERVICE_BASE_URL = "unes.forcetower.dev"
     private const val UNES_SERVICE_BASE_UPDATE = "unes.herokuapp.com"
-    const val UNES_SERVICE_URL = "http://$UNES_SERVICE_BASE_URL/api/"
+    const val UNES_SERVICE_URL = "https://$UNES_SERVICE_BASE_URL/api/"
     const val UNES_SERVICE_UPDATE = "http://$UNES_SERVICE_BASE_UPDATE/api/"
 
     const val DEVELOPER_EMAIL = "joaopaulo761@gmail.com"
@@ -38,4 +38,9 @@ object Constants {
     const val SERVICE_CLIENT_ID = "1"
     const val SERVICE_CLIENT_SECRET = "bCP23X90J5anU0H3uxzWg0RwE6BxEo0HDkqr0PZg"
     const val SERVICE_CLIENT_INSTITUTION = "uefs"
+
+    object DynamicFeatures {
+        const val AERI = "aeri"
+        const val MAPS = "map"
+    }
 }

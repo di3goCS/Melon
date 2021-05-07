@@ -2,7 +2,7 @@
  * This file is part of the UNES Open Source Project.
  * UNES is licensed under the GNU GPLv3.
  *
- * Copyright (c) 2019.  João Paulo Sena <joaopaulo761@gmail.com>
+ * Copyright (c) 2020. João Paulo Sena <joaopaulo761@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -27,25 +27,20 @@ import android.net.Uri
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
-import android.view.View.GONE
-import android.view.View.VISIBLE
 import android.view.ViewGroup
 import androidx.annotation.IdRes
-import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.content.ContextCompat
-import androidx.lifecycle.Observer
+import androidx.fragment.app.activityViewModels
 import androidx.navigation.fragment.findNavController
 import androidx.navigation.ui.NavigationUI
 import com.bumptech.glide.load.resource.drawable.DrawableTransitionOptions
+import com.forcetower.core.utils.ColorUtils
+import com.forcetower.uefs.BuildConfig
 import com.forcetower.uefs.GlideApp
 import com.forcetower.uefs.R
-import com.forcetower.uefs.core.injection.Injectable
 import com.forcetower.uefs.core.model.unes.Account
 import com.forcetower.uefs.core.model.unes.Course
-import com.forcetower.uefs.core.storage.resource.Resource
-import com.forcetower.uefs.core.util.ColorUtils
 import com.forcetower.uefs.core.util.isStudentFromUEFS
-import com.forcetower.uefs.core.vm.UViewModelFactory
 import com.forcetower.uefs.databinding.HomeBottomBinding
 import com.forcetower.uefs.feature.about.AboutActivity
 import com.forcetower.uefs.feature.feedback.SendFeedbackFragment
@@ -53,29 +48,23 @@ import com.forcetower.uefs.feature.settings.SettingsActivity
 import com.forcetower.uefs.feature.setup.CourseSelectionCallback
 import com.forcetower.uefs.feature.setup.SelectCourseDialog
 import com.forcetower.uefs.feature.shared.UFragment
-import com.forcetower.uefs.feature.shared.extensions.provideActivityViewModel
 import com.forcetower.uefs.feature.shared.getPixelsFromDp
 import com.google.firebase.remoteconfig.FirebaseRemoteConfig
-import com.mikepenz.aboutlibraries.Libs
 import com.mikepenz.aboutlibraries.LibsBuilder
 import com.theartofdev.edmodo.cropper.CropImage
 import com.theartofdev.edmodo.cropper.CropImageView
+import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 
-class HomeBottomFragment : UFragment(), Injectable {
-    @Inject
-    lateinit var viewModelFactory: UViewModelFactory
-    @Inject
-    lateinit var remoteConfig: FirebaseRemoteConfig
-    @Inject
-    lateinit var preferences: SharedPreferences
+@AndroidEntryPoint
+class HomeBottomFragment : UFragment() {
+    @Inject lateinit var remoteConfig: FirebaseRemoteConfig
+    @Inject lateinit var preferences: SharedPreferences
 
     private lateinit var binding: HomeBottomBinding
-    private lateinit var viewModel: HomeViewModel
+    private val viewModel: HomeViewModel by activityViewModels()
 
-    override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View? {
-        viewModel = provideActivityViewModel(viewModelFactory)
-
+    override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         return HomeBottomBinding.inflate(inflater, container, false).also {
             binding = it
         }.apply {
@@ -88,76 +77,63 @@ class HomeBottomFragment : UFragment(), Injectable {
         }.root
     }
 
-    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
-        nightSwitcherListener()
-    }
-
-    private fun nightSwitcherListener() {
-        val config = preferences.getString("stg_night_mode", "0")?.toIntOrNull() ?: 0
-        val active = config == 2
-        binding.switchNight.isChecked = active
-        binding.switchNight.setOnCheckedChangeListener { _, isChecked ->
-            val flag = if (isChecked) AppCompatDelegate.MODE_NIGHT_YES else AppCompatDelegate.MODE_NIGHT_NO
-            val state = if (isChecked) 2 else 1
-            preferences.edit().putString("stg_night_mode", state.toString()).apply()
-            AppCompatDelegate.setDefaultNightMode(flag)
-        }
-    }
-
     private fun editCourse() {
         if (!preferences.isStudentFromUEFS()) return
         val dialog = SelectCourseDialog()
-        dialog.setCallback(object : CourseSelectionCallback {
-            override fun onSelected(course: Course) {
-                viewModel.setSelectedCourse(course)
+        dialog.setCallback(
+            object : CourseSelectionCallback {
+                override fun onSelected(course: Course) {
+                    viewModel.setSelectedCourse(course)
+                }
             }
-        })
+        )
         dialog.show(childFragmentManager, "dialog_course")
     }
 
-    override fun onActivityCreated(savedInstanceState: Bundle?) {
-        super.onActivityCreated(savedInstanceState)
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
         setupNavigation()
         featureFlags()
-        viewModel.account.observe(this, Observer { handleAccount(it) })
+        viewModel.databaseAccount.observe(viewLifecycleOwner, { handleAccount(it) })
     }
 
-    private fun handleAccount(resource: Resource<Account>) {
-        val data = resource.data ?: return
-        toggleNightModeSwitcher(data.darkThemeEnabled)
-        binding.account = data
+    private fun handleAccount(account: Account?) {
+        binding.account = account
     }
 
     private fun featureFlags() {
         val demandFlag = remoteConfig.getBoolean("feature_flag_demand")
-        viewModel.flags.observe(this, Observer {
-            if (it?.demandOpen == true || demandFlag) {
+        val demandCommandFlag = remoteConfig.getBoolean("feature_flag_demand_commander")
+        viewModel.flags.observe(viewLifecycleOwner) {
+            if (demandCommandFlag && (it?.demandOpen == true || demandFlag)) {
                 toggleItem(R.id.demand, true)
             }
-        })
+        }
 
         val uefsStudent = preferences.isStudentFromUEFS()
+
+        val documentsFlag = remoteConfig.getBoolean("feature_flag_documents") || BuildConfig.DEBUG
+        toggleItem(R.id.documents, documentsFlag)
 
         val storeFlag = remoteConfig.getBoolean("feature_flag_store")
         toggleItem(R.id.purchases, storeFlag)
 
-        val dark = preferences.getBoolean("stg_night_mode_menu", true)
-        toggleItem(R.id.dark_theme_event, uefsStudent && dark)
-
         val hourglass = remoteConfig.getBoolean("feature_flag_evaluation") && uefsStudent
         toggleItem(R.id.evaluation, hourglass)
 
-        toggleItem(R.id.adventure, uefsStudent)
-        toggleItem(R.id.big_tray, uefsStudent)
-        toggleItem(R.id.events, false)
-        toggleItem(R.id.flowchart, uefsStudent)
-    }
+        val bigTray = remoteConfig.getBoolean("feature_flag_big_tray") && uefsStudent
+        toggleItem(R.id.big_tray, bigTray)
 
-    private fun toggleNightModeSwitcher(enabled: Boolean?) {
-        binding.switchNight.run {
-            visibility = if (enabled == true) VISIBLE
-            else GONE
-        }
+        val themeSwitcher = remoteConfig.getBoolean("feature_flag_theme_switcher")
+        toggleItem(R.id.theme_switcher, themeSwitcher)
+
+        val campusMap = (remoteConfig.getBoolean("feature_flag_campus_map") || BuildConfig.VERSION_NAME.contains("-beta")) && uefsStudent
+        val campusPreference = preferences.getBoolean("stg_advanced_maps_install", true)
+        toggleItem(R.id.campus_map, campusMap && campusPreference)
+
+        toggleItem(R.id.adventure, uefsStudent)
+        toggleItem(R.id.events, uefsStudent)
+        toggleItem(R.id.flowchart, uefsStudent)
     }
 
     private fun toggleItem(@IdRes id: Int, visible: Boolean) {
@@ -179,7 +155,7 @@ class HomeBottomFragment : UFragment(), Injectable {
                 }
                 R.id.open_source -> {
                     LibsBuilder()
-                        .withActivityStyle(Libs.ActivityStyle.DARK)
+                        .withEdgeToEdge(true)
                         .withAboutIconShown(true)
                         .withAboutVersionShown(true)
                         .withAboutDescription(getString(R.string.about_description))
@@ -195,7 +171,13 @@ class HomeBottomFragment : UFragment(), Injectable {
                     fragment.show(childFragmentManager, "feedback_modal")
                     true
                 }
-                else -> NavigationUI.onNavDestinationSelected(item, findNavController())
+                R.id.campus_map -> {
+                    findNavController().navigate(R.id.campus_map)
+                    true
+                }
+                else -> {
+                    NavigationUI.onNavDestinationSelected(item, findNavController())
+                }
             }
         }
     }
@@ -229,17 +211,17 @@ class HomeBottomFragment : UFragment(), Injectable {
                     val bg = ColorUtils.modifyAlpha(ContextCompat.getColor(requireContext(), R.color.colorPrimary), 120)
                     val ac = ContextCompat.getColor(requireContext(), R.color.colorAccent)
                     CropImage.activity(uri)
-                            .setFixAspectRatio(true)
-                            .setAspectRatio(1, 1)
-                            .setCropShape(CropImageView.CropShape.OVAL)
-                            .setBackgroundColor(bg)
-                            .setBorderLineColor(ac)
-                            .setBorderCornerColor(ac)
-                            .setActivityMenuIconColor(ac)
-                            .setBorderLineThickness(getPixelsFromDp(requireContext(), 2))
-                            .setActivityTitle(getString(R.string.cut_profile_image))
-                            .setGuidelines(CropImageView.Guidelines.OFF)
-                            .start(requireContext(), this)
+                        .setFixAspectRatio(true)
+                        .setAspectRatio(1, 1)
+                        .setCropShape(CropImageView.CropShape.OVAL)
+                        .setBackgroundColor(bg)
+                        .setBorderLineColor(ac)
+                        .setBorderCornerColor(ac)
+                        .setActivityMenuIconColor(ac)
+                        .setBorderLineThickness(getPixelsFromDp(requireContext(), 2))
+                        .setActivityTitle(getString(R.string.cut_profile_image))
+                        .setGuidelines(CropImageView.Guidelines.OFF)
+                        .start(requireContext(), this)
                 }
             }
             CropImage.CROP_IMAGE_ACTIVITY_REQUEST_CODE -> {

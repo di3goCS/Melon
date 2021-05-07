@@ -2,7 +2,7 @@
  * This file is part of the UNES Open Source Project.
  * UNES is licensed under the GNU GPLv3.
  *
- * Copyright (c) 2019.  João Paulo Sena <joaopaulo761@gmail.com>
+ * Copyright (c) 2020. João Paulo Sena <joaopaulo761@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -30,11 +30,11 @@ import com.forcetower.uefs.databinding.ItemDisciplineAbsenceBinding
 import com.forcetower.uefs.feature.shared.inflate
 
 class AbsenceAdapter : ListAdapter<ClassAbsence, AbsenceAdapter.AbsenceHolder>(DiffCallback) {
-    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): AbsenceAdapter.AbsenceHolder {
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): AbsenceHolder {
         return AbsenceHolder(parent.inflate(R.layout.item_discipline_absence))
     }
 
-    override fun onBindViewHolder(holder: AbsenceAdapter.AbsenceHolder, position: Int) {
+    override fun onBindViewHolder(holder: AbsenceHolder, position: Int) {
         holder.binding.apply {
             absence = getItem(position)
             executePendingBindings()

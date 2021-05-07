@@ -2,7 +2,7 @@
  * This file is part of the UNES Open Source Project.
  * UNES is licensed under the GNU GPLv3.
  *
- * Copyright (c) 2019.  João Paulo Sena <joaopaulo761@gmail.com>
+ * Copyright (c) 2020. João Paulo Sena <joaopaulo761@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -27,28 +27,25 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.core.content.FileProvider
-import androidx.lifecycle.Observer
+import androidx.fragment.app.activityViewModels
+import com.forcetower.core.lifecycle.EventObserver
 import com.forcetower.uefs.BuildConfig
 import com.forcetower.uefs.R
-import com.forcetower.uefs.core.injection.Injectable
-import com.forcetower.uefs.core.vm.EventObserver
-import com.forcetower.uefs.core.vm.UViewModelFactory
+import com.forcetower.uefs.core.model.unes.SagresDocument
 import com.forcetower.uefs.databinding.FragmentDocumentsBinding
+import com.forcetower.uefs.feature.captcha.CaptchaResolverFragment
 import com.forcetower.uefs.feature.shared.UFragment
-import com.forcetower.uefs.feature.shared.extensions.provideActivityViewModel
+import dagger.hilt.android.AndroidEntryPoint
+import timber.log.Timber
 import java.io.File
-import javax.inject.Inject
 
-class DocumentsFragment : UFragment(), Injectable {
-    @Inject
-    lateinit var factory: UViewModelFactory
-
+@AndroidEntryPoint
+class DocumentsFragment : UFragment() {
     private lateinit var binding: FragmentDocumentsBinding
-    private lateinit var viewModel: DocumentsViewModel
+    private val viewModel: DocumentsViewModel by activityViewModels()
     private lateinit var adapter: DocumentsAdapter
 
-    override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View? {
-        viewModel = provideActivityViewModel(factory)
+    override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         return FragmentDocumentsBinding.inflate(inflater, container, false).also {
             binding = it
         }.root
@@ -60,13 +57,24 @@ class DocumentsFragment : UFragment(), Injectable {
             recyclerDocuments.adapter = adapter
             incToolbar.textToolbarTitle.text = getString(R.string.label_documents)
         }
+
+        viewModel.documents.observe(viewLifecycleOwner, { adapter.documents = it ?: emptyList() })
+        viewModel.openDocumentAction.observe(viewLifecycleOwner, EventObserver { openDocument(it) })
+        viewModel.snackMessages.observe(viewLifecycleOwner, EventObserver { showSnack(it) })
+        viewModel.onRequestDownload.observe(viewLifecycleOwner, EventObserver { requestCaptchaForDocument(it) })
     }
 
-    override fun onActivityCreated(savedInstanceState: Bundle?) {
-        super.onActivityCreated(savedInstanceState)
-        viewModel.documents.observe(this, Observer { adapter.documents = it ?: emptyList() })
-        viewModel.openDocumentAction.observe(this, EventObserver { openDocument(it) })
-        viewModel.snackMessages.observe(this, EventObserver { showSnack(it) })
+    private fun requestCaptchaForDocument(document: SagresDocument) {
+        val fragment = CaptchaResolverFragment()
+        fragment.setCallback(
+            object : CaptchaResolverFragment.CaptchaResolvedCallback {
+                override fun onCaptchaResolved(token: String) {
+                    Timber.d("Token received $token")
+                    viewModel.onDownload(document, token)
+                }
+            }
+        )
+        fragment.show(childFragmentManager, "captcha_resolver")
     }
 
     private fun openDocument(document: File) {

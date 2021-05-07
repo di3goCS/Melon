@@ -2,7 +2,7 @@
  * This file is part of the UNES Open Source Project.
  * UNES is licensed under the GNU GPLv3.
  *
- * Copyright (c) 2019.  João Paulo Sena <joaopaulo761@gmail.com>
+ * Copyright (c) 2020. João Paulo Sena <joaopaulo761@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -25,6 +25,7 @@ import android.graphics.Rect
 import android.graphics.drawable.Drawable
 import androidx.recyclerview.widget.DividerItemDecoration.VERTICAL
 import androidx.recyclerview.widget.RecyclerView
+import kotlin.math.roundToInt
 
 class DividerItemDecorator(
     private val mDivider: Drawable,
@@ -50,7 +51,9 @@ class DividerItemDecorator(
             left = parent.paddingLeft
             right = parent.width - parent.paddingRight
             canvas.clipRect(
-                left, parent.paddingTop, right,
+                left,
+                parent.paddingTop,
+                right,
                 parent.height - parent.paddingBottom
             )
         } else {
@@ -62,7 +65,7 @@ class DividerItemDecorator(
         for (i in 0 until childCount - 1) {
             val child = parent.getChildAt(i)
             parent.getDecoratedBoundsWithMargins(child, mBounds)
-            val bottom = mBounds.bottom + Math.round(child.translationY)
+            val bottom = mBounds.bottom + child.translationY.roundToInt()
             val top = bottom - mDivider.intrinsicHeight
             mDivider.setBounds(left, top, right, bottom)
             mDivider.draw(canvas)
@@ -79,8 +82,10 @@ class DividerItemDecorator(
             top = parent.paddingTop
             bottom = parent.height - parent.paddingBottom
             canvas.clipRect(
-                parent.paddingLeft, top,
-                parent.width - parent.paddingRight, bottom
+                parent.paddingLeft,
+                top,
+                parent.width - parent.paddingRight,
+                bottom
             )
         } else {
             top = 0
@@ -91,7 +96,7 @@ class DividerItemDecorator(
         for (i in 0 until childCount - 1) {
             val child = parent.getChildAt(i)
             parent.layoutManager!!.getDecoratedBoundsWithMargins(child, mBounds)
-            val right = mBounds.right + Math.round(child.translationX)
+            val right = mBounds.right + child.translationX.roundToInt()
             val left = right - mDivider.intrinsicWidth
             mDivider.setBounds(left, top, right, bottom)
             mDivider.draw(canvas)

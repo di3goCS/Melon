@@ -2,7 +2,7 @@
  * This file is part of the UNES Open Source Project.
  * UNES is licensed under the GNU GPLv3.
  *
- * Copyright (c) 2019.  João Paulo Sena <joaopaulo761@gmail.com>
+ * Copyright (c) 2020. João Paulo Sena <joaopaulo761@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -24,21 +24,16 @@ import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import androidx.databinding.DataBindingUtil
-import androidx.fragment.app.Fragment
 import com.forcetower.uefs.R
 import com.forcetower.uefs.databinding.ActivityProfileBinding
 import com.forcetower.uefs.feature.shared.UActivity
 import com.forcetower.uefs.feature.shared.extensions.config
 import com.forcetower.uefs.feature.shared.extensions.inTransaction
 import com.google.android.material.snackbar.Snackbar
-import dagger.android.DispatchingAndroidInjector
-import dagger.android.support.HasSupportFragmentInjector
-import javax.inject.Inject
+import dagger.hilt.android.AndroidEntryPoint
 
-class ProfileActivity : UActivity(), HasSupportFragmentInjector {
-    @Inject
-    lateinit var fragmentInjector: DispatchingAndroidInjector<Fragment>
-
+@AndroidEntryPoint
+class ProfileActivity : UActivity() {
     private lateinit var binding: ActivityProfileBinding
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -53,18 +48,16 @@ class ProfileActivity : UActivity(), HasSupportFragmentInjector {
         }
     }
 
-    override fun showSnack(string: String, long: Boolean) {
-        val snack = getSnackInstance(string, long)
+    override fun showSnack(string: String, duration: Int) {
+        val snack = getSnackInstance(string, duration)
         snack.show()
     }
 
-    override fun getSnackInstance(string: String, long: Boolean): Snackbar {
-        val snack = Snackbar.make(binding.rootContainer, string, if (long) Snackbar.LENGTH_LONG else Snackbar.LENGTH_SHORT)
+    override fun getSnackInstance(string: String, duration: Int): Snackbar {
+        val snack = Snackbar.make(binding.rootContainer, string, duration)
         snack.config()
         return snack
     }
-
-    override fun supportFragmentInjector() = fragmentInjector
 
     companion object {
         const val EXTRA_STUDENT_ID = "student_id"

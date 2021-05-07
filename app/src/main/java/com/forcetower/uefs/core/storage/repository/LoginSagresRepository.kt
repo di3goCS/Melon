@@ -2,7 +2,7 @@
  * This file is part of the UNES Open Source Project.
  * UNES is licensed under the GNU GPLv3.
  *
- * Copyright (c) 2019.  João Paulo Sena <joaopaulo761@gmail.com>
+ * Copyright (c) 2020. João Paulo Sena <joaopaulo761@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -30,6 +30,7 @@ import androidx.lifecycle.MediatorLiveData
 import androidx.lifecycle.MutableLiveData
 import com.forcetower.sagres.SagresNavigator
 import com.forcetower.sagres.database.model.SagresCalendar
+import com.forcetower.sagres.database.model.SagresCredential
 import com.forcetower.sagres.database.model.SagresDiscipline
 import com.forcetower.sagres.database.model.SagresDisciplineClassLocation
 import com.forcetower.sagres.database.model.SagresDisciplineGroup
@@ -50,6 +51,8 @@ import com.forcetower.uefs.core.model.unes.Message
 import com.forcetower.uefs.core.model.unes.Semester
 import com.forcetower.uefs.core.model.unes.ServiceRequest
 import com.forcetower.uefs.core.storage.database.UDatabase
+import com.forcetower.uefs.core.storage.repository.cloud.AuthRepository
+import com.forcetower.uefs.core.util.LocationShrinker
 import com.forcetower.uefs.core.util.isStudentFromUEFS
 import com.forcetower.uefs.core.util.toLiveData
 import com.forcetower.uefs.core.work.grades.GradesSagresWorker
@@ -65,6 +68,8 @@ class LoginSagresRepository @Inject constructor(
     private val database: UDatabase,
     private val preferences: SharedPreferences,
     private val firebaseAuthRepository: FirebaseAuthRepository,
+    private val authRepository: AuthRepository,
+    private val sessionRepository: CookieSessionRepository,
     private val context: Context
 ) {
     val currentStep: MutableLiveData<Step> = MutableLiveData()
@@ -78,7 +83,7 @@ class LoginSagresRepository @Inject constructor(
     fun getProfileMe() = database.profileDao().selectMe()
 
     @MainThread
-    fun login(username: String, password: String, deleteDatabase: Boolean = false): LiveData<Callback> {
+    fun login(username: String, password: String, captcha: String?, deleteDatabase: Boolean = false, skipLogin: Boolean = false): LiveData<Callback> {
         val signIn = MediatorLiveData<Callback>()
         resetSteps()
         if (deleteDatabase) {
@@ -91,34 +96,48 @@ class LoginSagresRepository @Inject constructor(
                 database.profileDao().deleteMe()
                 database.semesterDao().deleteAll()
                 executor.mainThread().execute {
-                    login(signIn, username, password)
+                    login(signIn, username, password, captcha, skipLogin)
                 }
             }
         } else {
             incSteps()
-            login(signIn, username, password)
+            login(signIn, username, password, captcha, skipLogin)
         }
         return signIn
     }
 
     @MainThread
-    private fun login(data: MediatorLiveData<Callback>, username: String, password: String) {
-        val source = SagresNavigator.instance.aLogin(username, password).toLiveData()
-        currentStep.value = createStep(R.string.step_logging_in)
+    private fun login(data: MediatorLiveData<Callback>, username: String, password: String, captcha: String?, skipLogin: Boolean) {
+        SagresNavigator.instance.putCredentials(SagresCredential(username, password, SagresNavigator.instance.getSelectedInstitution()))
+
+        val source = if (!skipLogin) {
+            currentStep.value = createStep(R.string.step_logging_in)
+            SagresNavigator.instance.aLogin(username, password, captcha).toLiveData()
+        } else {
+            currentStep.value = createStep(R.string.step_login_bypassed)
+            SagresNavigator.instance.aStartPage().toLiveData()
+        }
         data.addSource(source) { l ->
             if (l.status == Status.SUCCESS) {
                 data.removeSource(source)
                 val score = SagresBasicParser.getScore(l.document)
                 Timber.d("Login Completed. Score parsed: $score")
-                executor.diskIO().execute { database.accessDao().insert(username, password) }
+                executor.diskIO().execute {
+                    database.accessDao().insert(username, password)
+                    if (preferences.isStudentFromUEFS()) {
+                        authRepository.syncLogin(username, password)
+                        sessionRepository.onLogin()
+                    }
+                }
                 me(data, score, Access(username = username, password = password), l.document!!)
             } else {
+                SagresNavigator.instance.putCredentials(null)
                 data.value = Callback.Builder(l.status)
-                        .code(l.code)
-                        .message(l.message)
-                        .throwable(l.throwable)
-                        .document(l.document)
-                        .build()
+                    .code(l.code)
+                    .message(l.message)
+                    .throwable(l.throwable)
+                    .document(l.document)
+                    .build()
             }
         }
     }
@@ -132,7 +151,7 @@ class LoginSagresRepository @Inject constructor(
         } else {
             val me = SagresNavigator.instance.aMe().toLiveData()
             data.addSource(me) { m ->
-                Timber.d("Me status ${m.status} ${m.code}")
+                Timber.d("Me status ${m.status} ${m.code} ${m.throwable}")
                 if (m.status == Status.SUCCESS) {
                     data.removeSource(me)
                     Timber.d("Me Completed. You are ${m.person?.name} and your CPF is ${m.person?.getCpf()}")
@@ -145,15 +164,16 @@ class LoginSagresRepository @Inject constructor(
                         Timber.d("SPerson is null")
                     }
                 } else if (m.status == Status.RESPONSE_FAILED || m.status == Status.NETWORK_ERROR) {
+                    m.throwable?.printStackTrace()
                     continueUsingHtml(document, username, score, access, data)
                 } else {
                     Timber.d("The status ${m.status}")
                     data.value = Callback.Builder(m.status)
-                            .code(m.code)
-                            .message(m.message)
-                            .throwable(m.throwable)
-                            .document(m.document)
-                            .build()
+                        .code(m.code)
+                        .message(m.message)
+                        .throwable(m.throwable)
+                        .document(m.document)
+                        .build()
                 }
             }
         }
@@ -187,11 +207,11 @@ class LoginSagresRepository @Inject constructor(
                     disciplinesExperimental(data)
             } else {
                 data.value = Callback.Builder(m.status)
-                        .code(m.code)
-                        .message(m.message)
-                        .throwable(m.throwable)
-                        .document(m.document)
-                        .build()
+                    .code(m.code)
+                    .message(m.message)
+                    .throwable(m.throwable)
+                    .document(m.document)
+                    .build()
             }
         }
     }
@@ -209,11 +229,11 @@ class LoginSagresRepository @Inject constructor(
                 disciplinesExperimental(data)
             } else {
                 data.value = Callback.Builder(s.status)
-                        .code(s.code)
-                        .message(s.message)
-                        .throwable(s.throwable)
-                        .document(s.document)
-                        .build()
+                    .code(s.code)
+                    .message(s.message)
+                    .throwable(s.throwable)
+                    .document(s.document)
+                    .build()
             }
         }
     }
@@ -265,11 +285,11 @@ class LoginSagresRepository @Inject constructor(
                 grades(data)
             } else {
                 data.value = Callback.Builder(s.status)
-                        .code(s.code)
-                        .message(s.message)
-                        .throwable(s.throwable)
-                        .document(s.document)
-                        .build()
+                    .code(s.code)
+                    .message(s.message)
+                    .throwable(s.throwable)
+                    .document(s.document)
+                    .build()
             }
         }
     }
@@ -279,8 +299,8 @@ class LoginSagresRepository @Inject constructor(
         val grades = SagresNavigator.instance.aGetCurrentGrades().toLiveData()
         currentStep.value = createStep(R.string.step_fetching_grades)
         data.addSource(grades) { g ->
-            when {
-                g.status == Status.SUCCESS -> {
+            when (g.status) {
+                Status.SUCCESS -> {
                     data.removeSource(grades)
 
                     Timber.d("Grades received: ${g.grades}")
@@ -299,22 +319,22 @@ class LoginSagresRepository @Inject constructor(
 
                     services(data)
                 }
-                g.status == Status.LOADING -> {
+                Status.LOADING -> {
                     data.value = Callback.Builder(g.status)
-                            .code(g.code)
-                            .message(g.message)
-                            .throwable(g.throwable)
-                            .document(g.document)
-                            .build()
+                        .code(g.code)
+                        .message(g.message)
+                        .throwable(g.throwable)
+                        .document(g.document)
+                        .build()
                 }
                 else -> {
                     Timber.d("Data status: ${g.status} ${g.code} ${g.throwable?.message}")
                     data.value = Callback.Builder(Status.GRADES_FAILED)
-                            .code(g.code)
-                            .message(g.message)
-                            .throwable(g.throwable)
-                            .document(g.document)
-                            .build()
+                        .code(g.code)
+                        .message(g.message)
+                        .throwable(g.throwable)
+                        .document(g.document)
+                        .build()
                 }
             }
         }
@@ -336,19 +356,21 @@ class LoginSagresRepository @Inject constructor(
                 }
                 Status.LOADING -> {
                     data.value = Callback.Builder(s.status)
-                            .code(s.code)
-                            .message(s.message)
-                            .throwable(s.throwable)
-                            .document(s.document)
-                            .build()
+                        .code(s.code)
+                        .message(s.message)
+                        .throwable(s.throwable)
+                        .document(s.document)
+                        .build()
                 }
                 else -> {
+                    Timber.d("ANOTHER ONE!")
+                    executor.networkIO().execute { sessionRepository.onLogin() }
                     data.value = Callback.Builder(Status.COMPLETED)
-                            .code(s.code)
-                            .message(s.message)
-                            .throwable(s.throwable)
-                            .document(s.document)
-                            .build()
+                        .code(s.code)
+                        .message(s.message)
+                        .throwable(s.throwable)
+                        .document(s.document)
+                        .build()
                 }
             }
         }
@@ -389,7 +411,14 @@ class LoginSagresRepository @Inject constructor(
     @WorkerThread
     private fun defineSchedule(locations: List<SagresDisciplineClassLocation>?) {
         if (locations == null) return
-        database.classLocationDao().putSchedule(locations)
+        val ordering = preferences.getBoolean("stg_semester_deterministic_ordering", true)
+        val shrinkSchedule = preferences.getBoolean("stg_schedule_shrinking", true)
+        if (shrinkSchedule) {
+            val shrink = LocationShrinker.shrink(locations)
+            database.classLocationDao().putSchedule(shrink, ordering)
+        } else {
+            database.classLocationDao().putSchedule(locations, ordering)
+        }
     }
 
     @WorkerThread
@@ -425,15 +454,15 @@ class LoginSagresRepository @Inject constructor(
         private var currentStep = 0
         private const val stepCount = 7
 
-        private fun resetSteps() {
+        fun resetSteps() {
             currentStep = 0
         }
 
-        private fun incSteps() {
+        fun incSteps() {
             currentStep++
         }
 
-        private fun createStep(@StringRes desc: Int): Step = Step(currentStep++, desc)
+        fun createStep(@StringRes desc: Int): Step = Step(currentStep++, desc)
     }
 
     data class Step(val step: Int, @StringRes val res: Int) {

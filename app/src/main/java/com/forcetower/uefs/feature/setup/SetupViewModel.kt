@@ -2,7 +2,7 @@
  * This file is part of the UNES Open Source Project.
  * UNES is licensed under the GNU GPLv3.
  *
- * Copyright (c) 2019.  João Paulo Sena <joaopaulo761@gmail.com>
+ * Copyright (c) 2020. João Paulo Sena <joaopaulo761@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,8 +22,8 @@ package com.forcetower.uefs.feature.setup
 
 import android.content.Context
 import android.net.Uri
-import androidx.preference.PreferenceManager
 import androidx.lifecycle.ViewModel
+import androidx.preference.PreferenceManager
 import com.forcetower.uefs.core.model.service.SyncFrequency
 import com.forcetower.uefs.core.model.unes.Course
 import com.forcetower.uefs.core.storage.repository.FirebaseAuthRepository
@@ -32,8 +32,10 @@ import com.forcetower.uefs.core.work.image.UploadImageToStorage
 import com.forcetower.uefs.core.work.sync.SyncLinkedWorker
 import com.forcetower.uefs.core.work.sync.SyncMainWorker
 import com.google.firebase.auth.FirebaseUser
+import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 
+@HiltViewModel
 class SetupViewModel @Inject constructor(
     private val firebaseAuthRepository: FirebaseAuthRepository,
     private val context: Context,

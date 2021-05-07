@@ -2,7 +2,7 @@
  * This file is part of the UNES Open Source Project.
  * UNES is licensed under the GNU GPLv3.
  *
- * Copyright (c) 2019.  João Paulo Sena <joaopaulo761@gmail.com>
+ * Copyright (c) 2020. João Paulo Sena <joaopaulo761@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,12 +20,23 @@
 
 package com.forcetower.uefs.feature.shared
 
+import android.os.Bundle
+import androidx.annotation.CallSuper
 import androidx.appcompat.app.AppCompatActivity
+import com.forcetower.uefs.feature.themeswitcher.ThemeOverlayUtils
 import com.google.android.material.snackbar.Snackbar
 
 abstract class UActivity : AppCompatActivity() {
 
-    open fun showSnack(string: String, long: Boolean = false) {}
+    @CallSuper
+    override fun onCreate(savedInstanceState: Bundle?) {
+        if (shouldApplyThemeOverlay()) ThemeOverlayUtils.applyThemeOverlays(this)
+        super.onCreate(savedInstanceState)
+    }
 
-    open fun getSnackInstance(string: String, long: Boolean = false): Snackbar? = null
+    open fun showSnack(string: String, duration: Int = Snackbar.LENGTH_SHORT) {}
+
+    open fun shouldApplyThemeOverlay() = true
+
+    open fun getSnackInstance(string: String, duration: Int = Snackbar.LENGTH_SHORT): Snackbar? = null
 }

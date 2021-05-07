@@ -2,7 +2,7 @@
  * This file is part of the UNES Open Source Project.
  * UNES is licensed under the GNU GPLv3.
  *
- * Copyright (c) 2019.  João Paulo Sena <joaopaulo761@gmail.com>
+ * Copyright (c) 2020. João Paulo Sena <joaopaulo761@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -92,9 +92,8 @@ fun BigTrayData.getPrice(): String {
 fun BigTrayData.getNextMealTime(): String {
     val calendar = this.time.toCalendar()
     val day = calendar.get(Calendar.DAY_OF_WEEK)
-    val type = getNextMealType()
 
-    when (type) {
+    when (getNextMealType()) {
         BigTrayData.COFFEE -> return if (day == SUNDAY) "07h30min às 09h00min" else "06h30min às 09h00min"
         BigTrayData.LUNCH -> {
             if (day == SUNDAY) return "11h30min às 13h30min"
@@ -118,11 +117,15 @@ fun BigTrayData.percentage(): Float {
         val amount = quota.toFloat()
         val type = getNextMealType()
 
-        return clamp(amount / when (type) {
-            BigTrayData.LUNCH -> 1450
-            BigTrayData.DINNER -> 490
-            else -> 320
-        }, 0f, 1f) * 100
+        return clamp(
+            amount / when (type) {
+                BigTrayData.LUNCH -> 1450
+                BigTrayData.DINNER -> 490
+                else -> 320
+            },
+            0f,
+            1f
+        ) * 100
     } catch (e: Exception) {
         Timber.d(e.message)
     }

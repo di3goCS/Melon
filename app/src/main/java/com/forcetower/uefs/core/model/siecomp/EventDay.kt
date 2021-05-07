@@ -2,7 +2,7 @@
  * This file is part of the UNES Open Source Project.
  * UNES is licensed under the GNU GPLv3.
  *
- * Copyright (c) 2019.  João Paulo Sena <joaopaulo761@gmail.com>
+ * Copyright (c) 2020. João Paulo Sena <joaopaulo761@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,15 +21,15 @@
 package com.forcetower.uefs.core.model.siecomp
 
 import android.annotation.SuppressLint
-import org.threeten.bp.ZonedDateTime
-import org.threeten.bp.format.DateTimeFormatter
+import java.time.ZonedDateTime
+import java.time.format.DateTimeFormatter
 import java.util.Locale
 
 private const val formatPattern = "d 'de' MMMM"
 
 @SuppressLint("ConstantLocale")
 val FORMATTER_MONTH_DAY: DateTimeFormatter =
-        DateTimeFormatter.ofPattern(formatPattern, Locale.getDefault())
+    DateTimeFormatter.ofPattern(formatPattern, Locale.getDefault())
 
 data class EventDay(
     val order: Int,

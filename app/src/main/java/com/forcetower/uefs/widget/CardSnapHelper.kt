@@ -2,7 +2,7 @@
  * This file is part of the UNES Open Source Project.
  * UNES is licensed under the GNU GPLv3.
  *
- * Copyright (c) 2019.  João Paulo Sena <joaopaulo761@gmail.com>
+ * Copyright (c) 2020. João Paulo Sena <joaopaulo761@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -27,6 +27,10 @@ import androidx.recyclerview.widget.LinearSnapHelper
 import androidx.recyclerview.widget.RecyclerView
 import com.ramotion.cardslider.CardSliderLayoutManager
 import java.security.InvalidParameterException
+import kotlin.math.abs
+import kotlin.math.ceil
+import kotlin.math.floor
+import kotlin.math.min
 
 class CardSnapHelper : LinearSnapHelper() {
 
@@ -69,19 +73,19 @@ class CardSnapHelper : LinearSnapHelper() {
         val vectorProvider = layoutManager as RecyclerView.SmoothScroller.ScrollVectorProvider?
 
         val vectorForEnd = vectorProvider!!.computeScrollVectorForPosition(itemCount - 1)
-                ?: return RecyclerView.NO_POSITION
+            ?: return RecyclerView.NO_POSITION
 
         val distance = calculateScrollDistance(velocityX, velocityY)[0]
         var deltaJump: Int
 
-        if (distance > 0) {
-            deltaJump = Math.floor((distance / lm.cardWidth).toDouble()).toInt()
+        deltaJump = if (distance > 0) {
+            floor((distance / lm.cardWidth).toDouble()).toInt()
         } else {
-            deltaJump = Math.ceil((distance / lm.cardWidth).toDouble()).toInt()
+            ceil((distance / lm.cardWidth).toDouble()).toInt()
         }
 
         val deltaSign = Integer.signum(deltaJump)
-        deltaJump = deltaSign * Math.min(3, Math.abs(deltaJump))
+        deltaJump = deltaSign * min(3, abs(deltaJump))
 
         if (vectorForEnd.x < 0) {
             deltaJump = -deltaJump

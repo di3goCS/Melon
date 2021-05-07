@@ -2,7 +2,7 @@
  * This file is part of the UNES Open Source Project.
  * UNES is licensed under the GNU GPLv3.
  *
- * Copyright (c) 2019.  João Paulo Sena <joaopaulo761@gmail.com>
+ * Copyright (c) 2020. João Paulo Sena <joaopaulo761@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -23,6 +23,7 @@ package com.forcetower.uefs.feature.shared.extensions
 import android.widget.TextView
 import androidx.databinding.BindingAdapter
 import com.forcetower.uefs.R
+import timber.log.Timber
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
@@ -51,7 +52,7 @@ fun getTimeStampedDate(view: TextView, time: Long) {
         }
         else -> {
             val hours = TimeUnit.HOURS.convert(diff, TimeUnit.MILLISECONDS)
-            val minutes = TimeUnit.MINUTES.convert(diff - (hours*oneHor), TimeUnit.MILLISECONDS)
+            val minutes = TimeUnit.MINUTES.convert(diff - (hours * oneHor), TimeUnit.MILLISECONDS)
             val str = hours.toString() + "h " + minutes + "min"
             context.getString(R.string.message_received_date_ago_format, str)
         }
@@ -86,7 +87,7 @@ fun Int.toWeekDay(): String {
 }
 
 fun String.fromWeekDay(): Int {
-    return when (this.toUpperCase()) {
+    return when (this.toUpperCase(Locale.getDefault())) {
         "DOM" -> 1
         "SEG" -> 2
         "TER" -> 3
@@ -95,6 +96,18 @@ fun String.fromWeekDay(): Int {
         "SEX" -> 6
         "SAB" -> 7
         else -> 0
+    }
+}
+
+fun String.createTimeInt(): Int {
+    return try {
+        val split = this.split(":")
+        val hour = split[0].toInt() * 60
+        val minute = split[1].toInt()
+        hour + minute
+    } catch (t: Throwable) {
+        Timber.e(t, "Failed to parse $this")
+        0
     }
 }
 

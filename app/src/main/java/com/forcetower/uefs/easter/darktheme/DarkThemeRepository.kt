@@ -2,7 +2,7 @@
  * This file is part of the UNES Open Source Project.
  * UNES is licensed under the GNU GPLv3.
  *
- * Copyright (c) 2019.  João Paulo Sena <joaopaulo761@gmail.com>
+ * Copyright (c) 2020. João Paulo Sena <joaopaulo761@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -26,7 +26,6 @@ import androidx.annotation.MainThread
 import androidx.annotation.WorkerThread
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
-import com.crashlytics.android.Crashlytics
 import com.forcetower.uefs.AppExecutors
 import com.forcetower.uefs.R
 import com.forcetower.uefs.core.model.api.DarkInvite
@@ -70,34 +69,20 @@ class DarkThemeRepository @Inject constructor(
         val completed = list.filter { it.completed }
         val completedSize = completed.size
         val account = database.accountDao().getAccountDirect()
-
-        val enabled = account?.darkThemeEnabled ?: false
-        val invites = if (completedSize < 2) 0 else (completedSize - 1)
-        if (enabled) {
-            preferences.edit()
-                    .putInt("dark_theme_invites", invites)
-                    .apply()
-        } else {
-            preferences.edit()
-                    .putInt("dark_theme_invites", invites)
-                    .putBoolean("ach_night_mode_enabled", (completedSize > 0))
-                    .apply()
-        }
-
-        if (!enabled && completed.isEmpty()) return
+        if (completed.isEmpty()) return
 
         if (account != null) {
             try {
                 service.requestDarkThemeUnlock(DarkUnlock(completedSize)).execute()
             } catch (throwable: Throwable) {
-                Crashlytics.logException(throwable)
+                Timber.e(throwable)
             }
         }
     }
 
     private fun create2048Precondition(): Precondition {
         val the2048score = context.getSharedPreferences(ScoreKeeper.PREFERENCES, Context.MODE_PRIVATE)
-                .getLong(ScoreKeeper.HIGH_SCORE, 0)
+            .getLong(ScoreKeeper.HIGH_SCORE, 0)
         Timber.d("2048 score: $the2048score")
         return Precondition(context.getString(R.string.precondition_1), context.getString(R.string.precondition_1_desc), the2048score >= 50000)
     }
@@ -135,7 +120,7 @@ class DarkThemeRepository @Inject constructor(
     @WorkerThread
     private fun createHoursPrecondition(): Precondition {
         val list = database.classDao().getAllDirect()
-        val credits = list.asSequence().map { it.discipline().credits }.sum()
+        val credits = list.asSequence().map { it.discipline.credits }.sum()
         Timber.d("Credits: $credits")
         return Precondition(context.getString(R.string.precondition_3), context.getString(R.string.precondition_3_desc, credits), credits >= 2200)
     }

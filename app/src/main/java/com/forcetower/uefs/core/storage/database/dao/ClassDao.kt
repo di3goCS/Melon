@@ -2,7 +2,7 @@
  * This file is part of the UNES Open Source Project.
  * UNES is licensed under the GNU GPLv3.
  *
- * Copyright (c) 2019.  João Paulo Sena <joaopaulo761@gmail.com>
+ * Copyright (c) 2020. João Paulo Sena <joaopaulo761@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -28,14 +28,13 @@ import androidx.room.OnConflictStrategy.IGNORE
 import androidx.room.Query
 import androidx.room.Transaction
 import androidx.room.Update
-import com.crashlytics.android.Crashlytics
 import com.forcetower.sagres.database.model.SagresDiscipline
 import com.forcetower.uefs.core.model.unes.Class
 import com.forcetower.uefs.core.model.unes.Discipline
 import com.forcetower.uefs.core.model.unes.Semester
-import com.forcetower.uefs.core.storage.database.accessors.ClassFullWithGroup
-import com.forcetower.uefs.core.storage.database.accessors.ClassWithDiscipline
-import com.forcetower.uefs.core.storage.database.accessors.ClassWithGroups
+import com.forcetower.uefs.core.storage.database.aggregation.ClassFullWithGroup
+import com.forcetower.uefs.core.storage.database.aggregation.ClassWithDiscipline
+import kotlinx.coroutines.flow.Flow
 import timber.log.Timber
 
 @Dao
@@ -44,23 +43,27 @@ abstract class ClassDao {
     abstract fun insert(classes: List<Class>)
 
     @Insert(onConflict = IGNORE)
-    abstract fun insert(clazz: Class)
+    abstract fun insert(clazz: Class): Long
 
     @Update
     abstract fun update(clazz: Class)
 
-    @Query("SELECT c.* FROM Class c, Semester s, Discipline d WHERE " +
+    @Query(
+        "SELECT c.* FROM Class c, Semester s, Discipline d WHERE " +
             "c.discipline_id = d.uid AND " +
             "c.semester_id = s.uid AND " +
             "s.codename = :semester AND " +
-            "LOWER(d.code) = LOWER(:code)")
+            "LOWER(d.code) = LOWER(:code)"
+    )
     abstract fun getClassDirect(semester: String, code: String): Class?
 
-    @Query("SELECT c.* FROM Class c, Semester s, Discipline d WHERE " +
+    @Query(
+        "SELECT c.* FROM Class c, Semester s, Discipline d WHERE " +
             "c.discipline_id = d.uid AND " +
             "c.semester_id = s.uid AND " +
             "s.codename = :semester AND " +
-            "LOWER(d.code) = LOWER(:code)")
+            "LOWER(d.code) = LOWER(:code)"
+    )
     abstract fun getClass(semester: String, code: String): LiveData<Class?>
 
     @Transaction
@@ -72,11 +75,15 @@ abstract class ClassDao {
 
     @Transaction
     @Query("SELECT c.* FROM Class c WHERE c.semester_id = :semesterId AND c.schedule_only = 0")
-    abstract fun getClassesWithGradesFromSemester(semesterId: Long): LiveData<List<ClassWithGroups>>
+    abstract fun getClassesWithGradesFromSemester(semesterId: Long): LiveData<List<ClassFullWithGroup>>
+
+    @Transaction
+    @Query("SELECT c.* FROM Class c WHERE c.schedule_only = 0")
+    abstract fun getClassesWithGradesFromAllSemesters(): Flow<List<ClassFullWithGroup>>
 
     @Transaction
     @Query("SELECT c.* FROM Class c WHERE c.semester_id = :semesterId AND c.schedule_only = 0")
-    abstract fun getClassesWithGradesFromSemesterDirect(semesterId: Long): List<ClassWithGroups>
+    abstract fun getClassesWithGradesFromSemesterDirect(semesterId: Long): List<ClassFullWithGroup>
 
     @Query("SELECT * FROM Discipline WHERE LOWER(code) = LOWER(:code)")
     protected abstract fun selectDisciplineDirect(code: String): Discipline?
@@ -86,7 +93,7 @@ abstract class ClassDao {
 
     @Transaction
     open fun insert(dis: SagresDiscipline, validated: Boolean) {
-        Timber.d("Unformated discipline $dis")
+        Timber.d("Unformatted discipline $dis")
         var clazz = getClassDirect(dis.semester.trim(), dis.code.trim())
         Timber.d("Inserting clazz... $clazz")
         if (clazz == null) {
@@ -101,12 +108,10 @@ abstract class ClassDao {
                 insert(clazz)
             } else {
                 if (semester == null) {
-                    Timber.d("Semester not found ${dis.semester.trim()}")
-                    Crashlytics.logException(Throwable("Semester not found ${dis.semester.trim()}"))
+                    Timber.e("Semester not found ${dis.semester.trim()}")
                 }
                 if (discipline != null) {
-                    Timber.d("Discipline not found ${discipline.code}")
-                    Crashlytics.logException(Throwable("Discipline not found ${discipline.code}"))
+                    Timber.e("Discipline not found ${discipline.code}")
                 }
             }
         }
@@ -116,6 +121,19 @@ abstract class ClassDao {
             update(clazz)
         }
     }
+
+    open suspend fun insertNewWays(clazz: Class): Long {
+        val current = getClassDirectlyNew(clazz.semesterId, clazz.disciplineId)
+        return if (current != null) {
+            update(current.copy(finalScore = clazz.finalScore, missedClasses = clazz.missedClasses))
+            current.uid
+        } else {
+            insert(clazz)
+        }
+    }
+
+    @Query("SELECT * FROM Class WHERE semester_id = :semesterId AND discipline_id = :disciplineId")
+    abstract suspend fun getClassDirectlyNew(semesterId: Long, disciplineId: Long): Class?
 
     @Delete
     abstract fun delete(clazz: Class)

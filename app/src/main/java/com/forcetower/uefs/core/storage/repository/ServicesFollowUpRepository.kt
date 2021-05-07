@@ -2,7 +2,7 @@
  * This file is part of the UNES Open Source Project.
  * UNES is licensed under the GNU GPLv3.
  *
- * Copyright (c) 2019.  João Paulo Sena <joaopaulo761@gmail.com>
+ * Copyright (c) 2020. João Paulo Sena <joaopaulo761@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -59,14 +59,11 @@ class ServicesFollowUpRepository @Inject constructor(
     }
 
     fun getRequestedServices(filter: String?): LiveData<List<ServiceRequest>> {
-        return if (filter == null) {
-            database.serviceRequestDao().getAll()
-        } else if (filter.equals("incomplete", ignoreCase = true)) {
-            database.serviceRequestDao().getIncomplete()
-        } else if (filter.equals("complete", ignoreCase = true)) {
-            database.serviceRequestDao().getComplete()
-        } else {
-            database.serviceRequestDao().getFiltered(filter)
+        return when {
+            filter == null -> database.serviceRequestDao().getAll()
+            filter.equals("incomplete", ignoreCase = true) -> database.serviceRequestDao().getIncomplete()
+            filter.equals("complete", ignoreCase = true) -> database.serviceRequestDao().getComplete()
+            else -> database.serviceRequestDao().getFiltered(filter)
         }
     }
 }

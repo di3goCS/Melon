@@ -2,7 +2,7 @@
  * This file is part of the UNES Open Source Project.
  * UNES is licensed under the GNU GPLv3.
  *
- * Copyright (c) 2019.  João Paulo Sena <joaopaulo761@gmail.com>
+ * Copyright (c) 2020. João Paulo Sena <joaopaulo761@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -35,6 +35,11 @@ abstract class AccessTokenDao {
         deleteAll()
         internalInsert(access)
     }
+    @Transaction
+    open suspend fun insertSuspend(access: AccessToken) {
+        deleteAll()
+        internalInsert(access)
+    }
 
     @Insert(onConflict = REPLACE)
     protected abstract fun internalInsert(access: AccessToken)
@@ -44,6 +49,9 @@ abstract class AccessTokenDao {
 
     @Query("SELECT * FROM AccessToken LIMIT 1")
     abstract fun getAccessTokenDirect(): AccessToken?
+
+    @Query("SELECT * FROM AccessToken LIMIT 1")
+    abstract suspend fun getAccessTokenDirectSuspend(): AccessToken?
 
     @Query("DELETE FROM AccessToken")
     abstract fun deleteAll()

@@ -2,7 +2,7 @@
  * This file is part of the UNES Open Source Project.
  * UNES is licensed under the GNU GPLv3.
  *
- * Copyright (c) 2019.  João Paulo Sena <joaopaulo761@gmail.com>
+ * Copyright (c) 2020. João Paulo Sena <joaopaulo761@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -24,27 +24,22 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import androidx.fragment.app.activityViewModels
 import androidx.lifecycle.Observer
 import androidx.recyclerview.widget.RecyclerView
 import com.forcetower.uefs.R
-import com.forcetower.uefs.core.injection.Injectable
-import com.forcetower.uefs.core.vm.UViewModelFactory
 import com.forcetower.uefs.databinding.FragmentDemandOffersBinding
 import com.forcetower.uefs.feature.shared.NavigationFragment
 import com.forcetower.uefs.feature.shared.UFragment
 import com.forcetower.uefs.feature.shared.getPixelsFromDp
-import com.forcetower.uefs.feature.shared.extensions.provideActivityViewModel
-import javax.inject.Inject
+import dagger.hilt.android.AndroidEntryPoint
 
-class DemandOffersFragment : UFragment(), Injectable, NavigationFragment {
-    @Inject
-    lateinit var factory: UViewModelFactory
-
-    private lateinit var viewModel: DemandViewModel
+@AndroidEntryPoint
+class DemandOffersFragment : UFragment(), NavigationFragment {
+    private val viewModel: DemandViewModel by activityViewModels()
     private lateinit var binding: FragmentDemandOffersBinding
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View? {
-        viewModel = provideActivityViewModel(factory)
         binding = FragmentDemandOffersBinding.inflate(inflater, container, false).apply {
             viewModel = this@DemandOffersFragment.viewModel
             lifecycleOwner = this@DemandOffersFragment
@@ -63,17 +58,22 @@ class DemandOffersFragment : UFragment(), Injectable, NavigationFragment {
                 changeDuration = 120L
                 removeDuration = 100L
             }
-            addOnScrollListener(object : RecyclerView.OnScrollListener() {
-                override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
-                    binding.incToolbar.appBar.elevation = if (recyclerView.canScrollVertically(-1)) getPixelsFromDp(requireContext(), 6) else 0f
+            addOnScrollListener(
+                object : RecyclerView.OnScrollListener() {
+                    override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
+                        binding.incToolbar.appBar.elevation = if (recyclerView.canScrollVertically(-1)) getPixelsFromDp(requireContext(), 6) else 0f
+                    }
                 }
-            })
+            )
         }
-        viewModel.offers.observe(this, Observer {
-            val data = it.data
-            if (data != null) {
-                offersAdapter.currentList = data
+        viewModel.offers.observe(
+            viewLifecycleOwner,
+            Observer {
+                val data = it.data
+                if (data != null) {
+                    offersAdapter.currentList = data
+                }
             }
-        })
+        )
     }
 }

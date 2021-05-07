@@ -2,7 +2,7 @@
  * This file is part of the UNES Open Source Project.
  * UNES is licensed under the GNU GPLv3.
  *
- * Copyright (c) 2019.  João Paulo Sena <joaopaulo761@gmail.com>
+ * Copyright (c) 2020. João Paulo Sena <joaopaulo761@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,7 +20,7 @@
 
 package com.forcetower.uefs.core.storage.database.dao
 
-import androidx.paging.DataSource
+import androidx.paging.PagingSource
 import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
@@ -62,18 +62,21 @@ abstract class EvaluationEntitiesDao {
     @Query("DELETE FROM EvaluationEntity")
     protected abstract fun clear()
 
-    open fun query(query: String): DataSource.Factory<Int, EvaluationEntity> {
-        val realQuery = "%${query.toLowerCase(Locale.getDefault()).unaccent()}%"
+    open fun query(query: String): PagingSource<Int, EvaluationEntity> {
         return if (query.isBlank()) {
             doQueryEmpty()
         } else {
+            val realQuery = query.toLowerCase(Locale.getDefault())
+                .unaccent()
+                .split(" ")
+                .joinToString("%", "%", "%")
             doQuery(realQuery)
         }
     }
 
     @Query("SELECT * FROM EvaluationEntity WHERE LOWER(searchable) LIKE :query ORDER BY name")
-    abstract fun doQuery(query: String): DataSource.Factory<Int, EvaluationEntity>
+    abstract fun doQuery(query: String): PagingSource<Int, EvaluationEntity>
 
     @Query("SELECT * FROM EvaluationEntity WHERE 0")
-    abstract fun doQueryEmpty(): DataSource.Factory<Int, EvaluationEntity>
+    abstract fun doQueryEmpty(): PagingSource<Int, EvaluationEntity>
 }

@@ -2,7 +2,7 @@
  * This file is part of the UNES Open Source Project.
  * UNES is licensed under the GNU GPLv3.
  *
- * Copyright (c) 2019.  João Paulo Sena <joaopaulo761@gmail.com>
+ * Copyright (c) 2020. João Paulo Sena <joaopaulo761@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -26,36 +26,29 @@ import android.view.View
 import android.view.ViewGroup
 import androidx.core.view.doOnLayout
 import androidx.databinding.ObservableFloat
-import androidx.lifecycle.Observer
-import com.forcetower.uefs.core.injection.Injectable
-import com.forcetower.uefs.core.vm.UViewModelFactory
+import androidx.fragment.app.activityViewModels
 import com.forcetower.uefs.databinding.FragmentDemandOverviewBinding
 import com.forcetower.uefs.feature.demand.DemandViewModel
 import com.forcetower.uefs.feature.shared.UFragment
-import com.forcetower.uefs.feature.shared.extensions.provideActivityViewModel
 import com.forcetower.uefs.widget.BottomSheetBehavior
 import com.forcetower.uefs.widget.BottomSheetBehavior.Companion.STATE_COLLAPSED
 import com.forcetower.uefs.widget.BottomSheetBehavior.Companion.STATE_EXPANDED
-import javax.inject.Inject
+import dagger.hilt.android.AndroidEntryPoint
 
-class DemandOverviewFragment : UFragment(), Injectable {
+@AndroidEntryPoint
+class DemandOverviewFragment : UFragment() {
     companion object {
         private const val ALPHA_CHANGEOVER = 0.33f
-        private const val ALPHA_DESC_MAX = 0f
         private const val ALPHA_HEADER_MAX = 0.67f
     }
 
-    @Inject
-    lateinit var factory: UViewModelFactory
-
-    private lateinit var viewModel: DemandViewModel
+    private val viewModel: DemandViewModel by activityViewModels()
     private lateinit var binding: FragmentDemandOverviewBinding
     private lateinit var behavior: BottomSheetBehavior<*>
 
     private var headerAlpha = ObservableFloat(1f)
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View? {
-        viewModel = provideActivityViewModel(factory)
         binding = FragmentDemandOverviewBinding.inflate(inflater, container, false).apply {
             viewModel = this@DemandOverviewFragment.viewModel
             headerAlpha = this@DemandOverviewFragment.headerAlpha
@@ -64,8 +57,8 @@ class DemandOverviewFragment : UFragment(), Injectable {
         return binding.root
     }
 
-    override fun onActivityCreated(savedInstanceState: Bundle?) {
-        super.onActivityCreated(savedInstanceState)
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
         behavior = BottomSheetBehavior.from(binding.demandOverviewSheet)
 
         val offersAdapter = OffersOverviewAdapter(this, viewModel)
@@ -74,15 +67,20 @@ class DemandOverviewFragment : UFragment(), Injectable {
             setHasFixedSize(true)
         }
 
-        viewModel.selected.observe(this, Observer {
-            if (it != null) offersAdapter.submitList(it)
-        })
-
-        behavior.addBottomSheetCallback(object : BottomSheetBehavior.BottomSheetCallback {
-            override fun onSlide(bottomSheet: View, slideOffset: Float) {
-                updateFilterHeadersAlpha(slideOffset)
+        viewModel.selected.observe(
+            viewLifecycleOwner,
+            {
+                if (it != null) offersAdapter.submitList(it)
             }
-        })
+        )
+
+        behavior.addBottomSheetCallback(
+            object : BottomSheetBehavior.BottomSheetCallback {
+                override fun onSlide(bottomSheet: View, slideOffset: Float) {
+                    updateFilterHeadersAlpha(slideOffset)
+                }
+            }
+        )
 
         binding.collapseArrow.setOnClickListener {
             behavior.state = STATE_COLLAPSED

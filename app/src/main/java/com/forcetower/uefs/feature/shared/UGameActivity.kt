@@ -2,7 +2,7 @@
  * This file is part of the UNES Open Source Project.
  * UNES is licensed under the GNU GPLv3.
  *
- * Copyright (c) 2019.  João Paulo Sena <joaopaulo761@gmail.com>
+ * Copyright (c) 2020. João Paulo Sena <joaopaulo761@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -33,6 +33,7 @@ import com.google.android.gms.auth.api.signin.GoogleSignInStatusCodes.SIGN_IN_CA
 import com.google.android.gms.auth.api.signin.GoogleSignInStatusCodes.SIGN_IN_CURRENTLY_IN_PROGRESS
 import com.google.android.gms.common.ConnectionResult.NETWORK_ERROR
 import com.google.android.gms.common.api.ApiException
+import com.google.android.material.snackbar.Snackbar
 import timber.log.Timber
 import javax.inject.Inject
 
@@ -85,19 +86,21 @@ abstract class UGameActivity : UActivity() {
 
     fun isConnectedToPlayGames() = mGamesInstance.isConnected()
     fun unlockAchievement(@StringRes id: Int) = mGamesInstance.unlockAchievement(id)
+    fun unlockAchievement(id: String) = mGamesInstance.unlockAchievement(id)
     fun revealAchievement(@StringRes id: Int) = mGamesInstance.revealAchievement(id)
     fun incrementAchievementProgress(@StringRes id: Int, step: Int) = mGamesInstance.incrementAchievement(id, step)
     fun updateAchievementProgress(@StringRes id: Int, value: Int) = mGamesInstance.updateProgress(id, value)
+    fun updateAchievementProgress(id: String, value: Int) = mGamesInstance.updateProgress(id, value)
     fun signOut() = mGamesInstance.disconnect()
 
     fun openAchievements() {
         if (!mGamesInstance.isConnected()) {
-            showSnack(getString(R.string.not_connected_to_the_adventure), true)
+            showSnack(getString(R.string.not_connected_to_the_adventure), Snackbar.LENGTH_LONG)
             return
         }
         val client = mGamesInstance.achievementsClient
         if (client == null) {
-            showSnack(getString(R.string.achievements_client_invalid_reconnect), true)
+            showSnack(getString(R.string.achievements_client_invalid_reconnect), Snackbar.LENGTH_LONG)
             return
         }
 
@@ -109,7 +112,7 @@ abstract class UGameActivity : UActivity() {
                         startActivityForResult(intent, PLAY_GAMES_ACHIEVEMENTS)
                         return@addOnCompleteListener
                     } else {
-                        showSnack(getString(R.string.cant_open_achievements_invalid_intent), true)
+                        showSnack(getString(R.string.cant_open_achievements_invalid_intent), Snackbar.LENGTH_LONG)
                     }
                 } else {
                     showSnack("${getString(R.string.unable_to_open_achievements)} ${it.exception?.message}")
@@ -146,7 +149,7 @@ abstract class UGameActivity : UActivity() {
                             exception.message.isNullOrBlank() -> R.string.invalid_google_sign_in_error
                             else -> R.string.invalid_google_sign_in_error
                         }
-                        Timber.e("Exception: ${exception?.message}")
+                        Timber.e("Exception: ${exception?.message}; ${exception?.statusCode}")
                         mGamesInstance.onDisconnected()
                         val error = getString(message)
                         showSnack(error)

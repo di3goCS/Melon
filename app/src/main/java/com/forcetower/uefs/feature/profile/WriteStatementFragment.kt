@@ -2,7 +2,7 @@
  * This file is part of the UNES Open Source Project.
  * UNES is licensed under the GNU GPLv3.
  *
- * Copyright (c) 2019.  João Paulo Sena <joaopaulo761@gmail.com>
+ * Copyright (c) 2020. João Paulo Sena <joaopaulo761@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -27,24 +27,22 @@ import android.view.View
 import android.view.ViewGroup
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.Observer
+import com.forcetower.core.lifecycle.EventObserver
 import com.forcetower.uefs.R
-import com.forcetower.uefs.core.injection.Injectable
-import com.forcetower.uefs.core.vm.EventObserver
-import com.forcetower.uefs.core.vm.UViewModelFactory
 import com.forcetower.uefs.databinding.FragmentWriteStatementBinding
 import com.forcetower.uefs.feature.profile.ProfileActivity.Companion.EXTRA_STUDENT_ID
 import com.forcetower.uefs.feature.shared.UFragment
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 
-class WriteStatementFragment : UFragment(), Injectable {
-    @Inject
-    lateinit var factory: UViewModelFactory
+@AndroidEntryPoint
+class WriteStatementFragment : UFragment() {
     @Inject
     lateinit var preferences: SharedPreferences
 
     private lateinit var binding: FragmentWriteStatementBinding
-    private val viewModel: ProfileViewModel by viewModels { factory }
+    private val viewModel: ProfileViewModel by viewModels()
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View? {
         viewModel.setProfileId(requireNotNull(arguments).getLong(EXTRA_STUDENT_ID, 0))
@@ -61,15 +59,21 @@ class WriteStatementFragment : UFragment(), Injectable {
         }
 
         binding.publish.setOnClickListener { onPublishStatement() }
-        viewModel.sendingStatement.observe(this, Observer { binding.sending = it })
-        viewModel.messages.observe(this, EventObserver { showSnack(it) })
-        viewModel.statementSentSignal.observe(this, EventObserver {
-            fragmentManager?.popBackStack()
-        })
-        binding.up.setOnClickListener { fragmentManager?.popBackStack() }
-        viewModel.getMeProfile().observe(this, Observer {
-            binding.student = it.data
-        })
+        viewModel.sendingStatement.observe(viewLifecycleOwner, Observer { binding.sending = it })
+        viewModel.messages.observe(viewLifecycleOwner, EventObserver { showSnack(it) })
+        viewModel.statementSentSignal.observe(
+            viewLifecycleOwner,
+            EventObserver {
+                parentFragmentManager.popBackStack()
+            }
+        )
+        binding.up.setOnClickListener { parentFragmentManager.popBackStack() }
+        viewModel.getMeProfile().observe(
+            viewLifecycleOwner,
+            Observer {
+                binding.student = it.data
+            }
+        )
     }
 
     private fun updateLabelTypeOnCheck(checked: Boolean) {
@@ -104,7 +108,7 @@ class WriteStatementFragment : UFragment(), Injectable {
     }
 
     private fun onShowWarningUserAgreement() {
-        MaterialAlertDialogBuilder(context)
+        MaterialAlertDialogBuilder(requireContext())
             .setTitle(R.string.write_statement_agreement_title)
             .setMessage(R.string.write_statement_agreement_message)
             .setCancelable(true)

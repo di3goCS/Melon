@@ -2,7 +2,7 @@
  * This file is part of the UNES Open Source Project.
  * UNES is licensed under the GNU GPLv3.
  *
- * Copyright (c) 2019.  João Paulo Sena <joaopaulo761@gmail.com>
+ * Copyright (c) 2020. João Paulo Sena <joaopaulo761@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -26,6 +26,7 @@ import androidx.lifecycle.LifecycleOwner
 import androidx.recyclerview.widget.AsyncListDiffer
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.RecyclerView
+import com.forcetower.core.adapters.ImageLoadListener
 import com.forcetower.uefs.R
 import com.forcetower.uefs.core.model.unes.ProfileStatement
 import com.forcetower.uefs.databinding.ItemProfileHeaderBinding
@@ -33,7 +34,6 @@ import com.forcetower.uefs.databinding.ItemProfileStatementBinding
 import com.forcetower.uefs.databinding.ItemProfileStatementHeaderBinding
 import com.forcetower.uefs.databinding.ItemProfileStatementUnapprovedHeaderBinding
 import com.forcetower.uefs.feature.shared.inflate
-import com.forcetower.uefs.feature.siecomp.speaker.ImageLoadListener
 
 class ProfileAdapter(
     private val viewModel: ProfileViewModel,
@@ -43,10 +43,10 @@ class ProfileAdapter(
 ) : RecyclerView.Adapter<ProfileAdapter.ProfileHolder>() {
     private val differ = AsyncListDiffer(this, DiffCallback)
     var statements = emptyList<ProfileStatement>()
-    set(value) {
-        field = value
-        differ.submitList(buildMergedList(stats = value))
-    }
+        set(value) {
+            field = value
+            differ.submitList(buildMergedList(stats = value))
+        }
 
     init {
         differ.submitList(buildMergedList())
@@ -104,7 +104,7 @@ class ProfileAdapter(
             val unapproved = stats.filter { !it.approved }
             if (unapproved.isNotEmpty()) {
                 merged += UnapprovedStatementsHeader
-                merged.addAll(stats)
+                merged.addAll(unapproved)
             }
             if (approved.isNotEmpty()) {
                 merged += StatementsHeader

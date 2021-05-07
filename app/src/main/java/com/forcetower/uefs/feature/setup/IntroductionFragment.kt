@@ -2,7 +2,7 @@
  * This file is part of the UNES Open Source Project.
  * UNES is licensed under the GNU GPLv3.
  *
- * Copyright (c) 2019.  João Paulo Sena <joaopaulo761@gmail.com>
+ * Copyright (c) 2020. João Paulo Sena <joaopaulo761@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -29,56 +29,41 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.core.content.ContextCompat
-import androidx.lifecycle.Observer
+import androidx.fragment.app.activityViewModels
 import androidx.navigation.fragment.findNavController
 import com.bumptech.glide.load.resource.drawable.DrawableTransitionOptions
 import com.bumptech.glide.signature.ObjectKey
+import com.forcetower.core.utils.ColorUtils
 import com.forcetower.uefs.GlideApp
 import com.forcetower.uefs.R
-import com.forcetower.uefs.core.injection.Injectable
 import com.forcetower.uefs.core.model.unes.Course
 import com.forcetower.uefs.core.storage.repository.SyncFrequencyRepository
-import com.forcetower.uefs.core.util.ColorUtils
 import com.forcetower.uefs.core.util.isStudentFromUEFS
-import com.forcetower.uefs.core.vm.UViewModelFactory
 import com.forcetower.uefs.databinding.FragmentSetupIntroductionBinding
 import com.forcetower.uefs.feature.shared.UFragment
 import com.forcetower.uefs.feature.shared.getPixelsFromDp
-import com.forcetower.uefs.feature.shared.extensions.provideActivityViewModel
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.storage.FirebaseStorage
 import com.theartofdev.edmodo.cropper.CropImage
 import com.theartofdev.edmodo.cropper.CropImageView
+import dagger.hilt.android.AndroidEntryPoint
 import timber.log.Timber
 import javax.inject.Inject
 
-class IntroductionFragment : UFragment(), Injectable {
-    @Inject
-    lateinit var factory: UViewModelFactory
-    @Inject
-    lateinit var firebaseAuth: FirebaseAuth
-    @Inject
-    lateinit var firebaseStorage: FirebaseStorage
-    @Inject
-    lateinit var repository: SyncFrequencyRepository
-    @Inject
-    lateinit var preferences: SharedPreferences
+@AndroidEntryPoint
+class IntroductionFragment : UFragment() {
+    @Inject lateinit var firebaseAuth: FirebaseAuth
+    @Inject lateinit var firebaseStorage: FirebaseStorage
+    @Inject lateinit var repository: SyncFrequencyRepository
+    @Inject lateinit var preferences: SharedPreferences
 
+    private val viewModel: SetupViewModel by activityViewModels()
     private lateinit var binding: FragmentSetupIntroductionBinding
-    private lateinit var viewModel: SetupViewModel
 
-    override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View? {
-        viewModel = provideActivityViewModel(factory)
+    override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         return FragmentSetupIntroductionBinding.inflate(inflater, container, false).also {
             binding = it
         }.root
-    }
-
-    override fun onActivityCreated(savedInstanceState: Bundle?) {
-        super.onActivityCreated(savedInstanceState)
-        repository.getFrequencies().observe(this, Observer {
-            viewModel.syncFrequencies = it
-        })
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
@@ -86,12 +71,14 @@ class IntroductionFragment : UFragment(), Injectable {
         if (!uefsStudent) binding.textSelectCourse.visibility = View.INVISIBLE
         binding.textSelectCourseInternal.setOnClickListener {
             val dialog = SelectCourseDialog()
-            dialog.setCallback(object : CourseSelectionCallback {
-                override fun onSelected(course: Course) {
-                    viewModel.setSelectedCourse(course)
-                    binding.textSelectCourseInternal.setText(course.name)
+            dialog.setCallback(
+                object : CourseSelectionCallback {
+                    override fun onSelected(course: Course) {
+                        viewModel.setSelectedCourse(course)
+                        binding.textSelectCourseInternal.setText(course.name)
+                    }
                 }
-            })
+            )
             dialog.show(childFragmentManager, "dialog_course")
         }
 
@@ -130,6 +117,13 @@ class IntroductionFragment : UFragment(), Injectable {
                 .signature(ObjectKey(System.currentTimeMillis() ushr 21))
                 .into(binding.imageUserImage)
         }
+
+        repository.getFrequencies().observe(
+            viewLifecycleOwner,
+            {
+                viewModel.syncFrequencies = it
+            }
+        )
     }
 
     private fun pickImage() {
@@ -141,12 +135,12 @@ class IntroductionFragment : UFragment(), Injectable {
     private fun onImagePicked(uri: Uri) {
         viewModel.setSelectedImage(uri)
         GlideApp.with(requireContext())
-                .load(uri)
-                .fallback(R.mipmap.ic_unes_large_image_512)
-                .placeholder(R.mipmap.ic_unes_large_image_512)
-                .circleCrop()
-                .transition(DrawableTransitionOptions.withCrossFade())
-                .into(binding.imageUserImage)
+            .load(uri)
+            .fallback(R.mipmap.ic_unes_large_image_512)
+            .placeholder(R.mipmap.ic_unes_large_image_512)
+            .circleCrop()
+            .transition(DrawableTransitionOptions.withCrossFade())
+            .into(binding.imageUserImage)
     }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
@@ -159,17 +153,17 @@ class IntroductionFragment : UFragment(), Injectable {
                     val bg = ColorUtils.modifyAlpha(ContextCompat.getColor(requireContext(), R.color.colorPrimary), 120)
                     val ac = ContextCompat.getColor(requireContext(), R.color.colorAccent)
                     CropImage.activity(uri)
-                            .setFixAspectRatio(true)
-                            .setAspectRatio(1, 1)
-                            .setCropShape(CropImageView.CropShape.OVAL)
-                            .setBackgroundColor(bg)
-                            .setBorderLineColor(ac)
-                            .setBorderCornerColor(ac)
-                            .setActivityMenuIconColor(ac)
-                            .setBorderLineThickness(getPixelsFromDp(requireContext(), 2))
-                            .setActivityTitle(getString(R.string.cut_profile_image))
-                            .setGuidelines(CropImageView.Guidelines.OFF)
-                            .start(requireContext(), this)
+                        .setFixAspectRatio(true)
+                        .setAspectRatio(1, 1)
+                        .setCropShape(CropImageView.CropShape.OVAL)
+                        .setBackgroundColor(bg)
+                        .setBorderLineColor(ac)
+                        .setBorderCornerColor(ac)
+                        .setActivityMenuIconColor(ac)
+                        .setBorderLineThickness(getPixelsFromDp(requireContext(), 2))
+                        .setActivityTitle(getString(R.string.cut_profile_image))
+                        .setGuidelines(CropImageView.Guidelines.OFF)
+                        .start(requireContext(), this)
                 }
             }
             CropImage.CROP_IMAGE_ACTIVITY_REQUEST_CODE -> {

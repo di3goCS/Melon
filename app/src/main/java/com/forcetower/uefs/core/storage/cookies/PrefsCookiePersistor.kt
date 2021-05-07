@@ -2,7 +2,7 @@
  * This file is part of the UNES Open Source Project.
  * UNES is licensed under the GNU GPLv3.
  *
- * Copyright (c) 2019. João Paulo Sena <joaopaulo761@gmail.com>
+ * Copyright (c) 2020. João Paulo Sena <joaopaulo761@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,13 +22,10 @@ package com.forcetower.uefs.core.storage.cookies
 
 import android.content.Context
 import android.content.SharedPreferences
-
 import com.forcetower.sagres.cookies.CookiePersistor
 import com.forcetower.sagres.cookies.SerializableCookie
-
-import java.util.ArrayList
-
 import okhttp3.Cookie
+import java.util.ArrayList
 
 class PrefsCookiePersistor(context: Context) : CookiePersistor {
     private val sharedPreferences: SharedPreferences =

@@ -2,7 +2,7 @@
  * This file is part of the UNES Open Source Project.
  * UNES is licensed under the GNU GPLv3.
  *
- * Copyright (c) 2019.  João Paulo Sena <joaopaulo761@gmail.com>
+ * Copyright (c) 2020. João Paulo Sena <joaopaulo761@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -23,34 +23,25 @@ package com.forcetower.uefs.feature.evaluation
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
+import androidx.activity.viewModels
 import androidx.databinding.DataBindingUtil
-import androidx.fragment.app.Fragment
 import androidx.navigation.findNavController
 import com.forcetower.uefs.EvalNavGraphDirections
 import com.forcetower.uefs.R
-import com.forcetower.uefs.core.vm.UViewModelFactory
 import com.forcetower.uefs.core.vm.UserSessionViewModel
 import com.forcetower.uefs.databinding.ActivityEvaluationBinding
 import com.forcetower.uefs.feature.shared.UGameActivity
 import com.forcetower.uefs.feature.shared.extensions.config
-import com.forcetower.uefs.feature.shared.extensions.provideViewModel
 import com.google.android.material.snackbar.Snackbar
-import dagger.android.DispatchingAndroidInjector
-import dagger.android.support.HasSupportFragmentInjector
-import javax.inject.Inject
+import dagger.hilt.android.AndroidEntryPoint
 
-class EvaluationActivity : UGameActivity(), HasSupportFragmentInjector {
-    @Inject
-    lateinit var fragmentInjector: DispatchingAndroidInjector<Fragment>
-    @Inject
-    lateinit var factory: UViewModelFactory
-    private lateinit var sessionViewModel: UserSessionViewModel
-
+@AndroidEntryPoint
+class EvaluationActivity : UGameActivity() {
+    private val sessionViewModel: UserSessionViewModel by viewModels()
     private lateinit var binding: ActivityEvaluationBinding
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        sessionViewModel = provideViewModel(factory)
         binding = DataBindingUtil.setContentView(this, R.layout.activity_evaluation)
         if (savedInstanceState == null) {
             val teacherName = intent.getStringExtra("teacherName")
@@ -63,13 +54,15 @@ class EvaluationActivity : UGameActivity(), HasSupportFragmentInjector {
 
     override fun navigateUpTo(upIntent: Intent?): Boolean = findNavController(R.id.eval_nav_host).navigateUp()
 
-    override fun showSnack(string: String, long: Boolean) {
-        val snack = Snackbar.make(binding.root, string, if (long) Snackbar.LENGTH_LONG else Snackbar.LENGTH_SHORT)
-        snack.config()
-        snack.show()
+    override fun showSnack(string: String, duration: Int) {
+        getSnackInstance(string, duration).show()
     }
 
-    override fun supportFragmentInjector() = fragmentInjector
+    override fun getSnackInstance(string: String, duration: Int): Snackbar {
+        val snack = Snackbar.make(binding.root, string, duration)
+        snack.config()
+        return snack
+    }
 
     override fun onUserInteraction() {
         super.onUserInteraction()

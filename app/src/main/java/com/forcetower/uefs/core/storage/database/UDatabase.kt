@@ -2,7 +2,7 @@
  * This file is part of the UNES Open Source Project.
  * UNES is licensed under the GNU GPLv3.
  *
- * Copyright (c) 2019.  João Paulo Sena <joaopaulo761@gmail.com>
+ * Copyright (c) 2020. João Paulo Sena <joaopaulo761@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -26,6 +26,8 @@ import androidx.room.TypeConverters
 import com.forcetower.uefs.core.model.unes.Access
 import com.forcetower.uefs.core.model.unes.AccessToken
 import com.forcetower.uefs.core.model.unes.Account
+import com.forcetower.uefs.core.model.unes.AffinityQuestion
+import com.forcetower.uefs.core.model.unes.AffinityQuestionAlternative
 import com.forcetower.uefs.core.model.unes.CalendarItem
 import com.forcetower.uefs.core.model.unes.Class
 import com.forcetower.uefs.core.model.unes.ClassAbsence
@@ -37,6 +39,7 @@ import com.forcetower.uefs.core.model.unes.Contributor
 import com.forcetower.uefs.core.model.unes.Course
 import com.forcetower.uefs.core.model.unes.Discipline
 import com.forcetower.uefs.core.model.unes.EvaluationEntity
+import com.forcetower.uefs.core.model.unes.Event
 import com.forcetower.uefs.core.model.unes.Flowchart
 import com.forcetower.uefs.core.model.unes.FlowchartDiscipline
 import com.forcetower.uefs.core.model.unes.FlowchartRequirement
@@ -59,6 +62,7 @@ import com.forcetower.uefs.core.model.unes.UserSession
 import com.forcetower.uefs.core.storage.database.dao.AccessDao
 import com.forcetower.uefs.core.storage.database.dao.AccessTokenDao
 import com.forcetower.uefs.core.storage.database.dao.AccountDao
+import com.forcetower.uefs.core.storage.database.dao.AffinityQuestionDao
 import com.forcetower.uefs.core.storage.database.dao.CalendarDao
 import com.forcetower.uefs.core.storage.database.dao.ClassAbsenceDao
 import com.forcetower.uefs.core.storage.database.dao.ClassDao
@@ -73,6 +77,7 @@ import com.forcetower.uefs.core.storage.database.dao.DisciplineDao
 import com.forcetower.uefs.core.storage.database.dao.DisciplineServiceDao
 import com.forcetower.uefs.core.storage.database.dao.DocumentDao
 import com.forcetower.uefs.core.storage.database.dao.EvaluationEntitiesDao
+import com.forcetower.uefs.core.storage.database.dao.EventDao
 import com.forcetower.uefs.core.storage.database.dao.FlagsDao
 import com.forcetower.uefs.core.storage.database.dao.FlowchartDao
 import com.forcetower.uefs.core.storage.database.dao.FlowchartDisciplineDao
@@ -86,45 +91,53 @@ import com.forcetower.uefs.core.storage.database.dao.SemesterDao
 import com.forcetower.uefs.core.storage.database.dao.ServiceRequestDao
 import com.forcetower.uefs.core.storage.database.dao.StudentServiceDao
 import com.forcetower.uefs.core.storage.database.dao.SyncRegistryDao
+import com.forcetower.uefs.core.storage.database.dao.TeacherDao
 import com.forcetower.uefs.core.storage.database.dao.TeacherServiceDao
 import com.forcetower.uefs.core.storage.database.dao.UserSessionDao
 import com.forcetower.uefs.core.util.Converters
 
-@Database(entities = [
-    AccessToken::class,
-    Access::class,
-    Profile::class,
-    Semester::class,
-    Message::class,
-    CalendarItem::class,
-    Discipline::class,
-    Class::class,
-    ClassGroup::class,
-    ClassAbsence::class,
-    ClassLocation::class,
-    ClassItem::class,
-    ClassMaterial::class,
-    Grade::class,
-    Course::class,
-    SagresDocument::class,
-    SyncRegistry::class,
-    Teacher::class,
-    SDemandOffer::class,
-    SagresFlags::class,
-    Contributor::class,
-    ServiceRequest::class,
-    Account::class,
-    STeacher::class,
-    SDiscipline::class,
-    SStudent::class,
-    EvaluationEntity::class,
-    Flowchart::class,
-    FlowchartSemester::class,
-    FlowchartDiscipline::class,
-    FlowchartRequirement::class,
-    ProfileStatement::class,
-    UserSession::class
-], version = 36, exportSchema = true)
+@Database(
+    entities = [
+        AccessToken::class,
+        Access::class,
+        Profile::class,
+        Semester::class,
+        Message::class,
+        CalendarItem::class,
+        Discipline::class,
+        Class::class,
+        ClassGroup::class,
+        ClassAbsence::class,
+        ClassLocation::class,
+        ClassItem::class,
+        ClassMaterial::class,
+        Grade::class,
+        Course::class,
+        SagresDocument::class,
+        SyncRegistry::class,
+        Teacher::class,
+        SDemandOffer::class,
+        SagresFlags::class,
+        Contributor::class,
+        ServiceRequest::class,
+        Account::class,
+        STeacher::class,
+        SDiscipline::class,
+        SStudent::class,
+        EvaluationEntity::class,
+        Flowchart::class,
+        FlowchartSemester::class,
+        FlowchartDiscipline::class,
+        FlowchartRequirement::class,
+        ProfileStatement::class,
+        UserSession::class,
+        AffinityQuestion::class,
+        AffinityQuestionAlternative::class,
+        Event::class
+    ],
+    version = 52,
+    exportSchema = true
+)
 @TypeConverters(value = [Converters::class])
 abstract class UDatabase : RoomDatabase() {
     abstract fun accessDao(): AccessDao
@@ -135,6 +148,7 @@ abstract class UDatabase : RoomDatabase() {
     abstract fun calendarDao(): CalendarDao
     abstract fun disciplineDao(): DisciplineDao
     abstract fun classDao(): ClassDao
+    abstract fun teacherDao(): TeacherDao
     abstract fun classGroupDao(): ClassGroupDao
     abstract fun classAbsenceDao(): ClassAbsenceDao
     abstract fun classLocationDao(): ClassLocationDao
@@ -159,4 +173,6 @@ abstract class UDatabase : RoomDatabase() {
     abstract fun flowchartRequirementDao(): FlowchartRequirementDao
     abstract fun statementDao(): ProfileStatementDao
     abstract fun userSessionDao(): UserSessionDao
+    abstract fun affinityQuestion(): AffinityQuestionDao
+    abstract fun eventDao(): EventDao
 }

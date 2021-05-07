@@ -2,7 +2,7 @@
  * This file is part of the UNES Open Source Project.
  * UNES is licensed under the GNU GPLv3.
  *
- * Copyright (c) 2019.  João Paulo Sena <joaopaulo761@gmail.com>
+ * Copyright (c) 2020. João Paulo Sena <joaopaulo761@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,6 +22,8 @@ package com.forcetower.uefs.core.storage.database
 
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
+import com.forcetower.uefs.feature.shared.extensions.createTimeInt
+import com.forcetower.uefs.feature.shared.extensions.fromWeekDay
 
 object M1TO2 : Migration(1, 2) {
     override fun migrate(database: SupportSQLiteDatabase) {
@@ -280,5 +282,151 @@ object M34TO35 : Migration(34, 35) {
 object M35TO36 : Migration(35, 36) {
     override fun migrate(database: SupportSQLiteDatabase) {
         database.execSQL("ALTER TABLE ProfileStatement ADD COLUMN hidden INTEGER NOT NULL DEFAULT 0")
+    }
+}
+
+object M36TO37 : Migration(36, 37) {
+    override fun migrate(database: SupportSQLiteDatabase) {
+        database.execSQL("DELETE FROM Account")
+    }
+}
+
+object M37TO38 : Migration(37, 38) {
+    override fun migrate(database: SupportSQLiteDatabase) {
+        database.execSQL("DROP INDEX IF EXISTS `index_ClassAbsence_class_id_profile_id_sequence`")
+        database.execSQL("ALTER TABLE ClassAbsence ADD COLUMN grouping TEXT NOT NULL DEFAULT 'inv'")
+        database.execSQL("CREATE UNIQUE INDEX `index_ClassAbsence_class_id_profile_id_sequence_grouping` ON ClassAbsence (`class_id`, `profile_id`, `sequence`, `grouping`)")
+    }
+}
+
+object M38TO39 : Migration(38, 39) {
+    override fun migrate(database: SupportSQLiteDatabase) {
+        database.execSQL("ALTER TABLE ClassLocation ADD COLUMN hidden_on_schedule INTEGER NOT NULL DEFAULT 0")
+    }
+}
+
+object M39TO40 : Migration(39, 40) {
+    override fun migrate(database: SupportSQLiteDatabase) {
+        database.execSQL("ALTER TABLE ClassLocation ADD COLUMN startsAtInt INTEGER NOT NULL DEFAULT 0")
+        database.execSQL("ALTER TABLE ClassLocation ADD COLUMN endsAtInt INTEGER NOT NULL DEFAULT 0")
+        database.execSQL("ALTER TABLE ClassLocation ADD COLUMN dayInt INTEGER NOT NULL DEFAULT 0")
+
+        val cursor = database.query("SELECT * FROM ClassLocation")
+
+        val uidIndex = cursor.getColumnIndex("uid")
+        val startIndex = cursor.getColumnIndex("starts_at")
+        val endIndex = cursor.getColumnIndex("ends_at")
+        val dayIndex = cursor.getColumnIndex("day")
+
+        while (cursor.moveToNext()) {
+            val uid = cursor.getLong(uidIndex)
+            val start = cursor.getString(startIndex).createTimeInt()
+            val end = cursor.getString(endIndex).createTimeInt()
+            val day = cursor.getString(dayIndex).fromWeekDay()
+            database.execSQL("UPDATE ClassLocation SET startsAtInt = $start, endsAtInt = $end, dayInt = $day WHERE uid = $uid")
+        }
+    }
+}
+
+object M40TO41 : Migration(40, 41) {
+    override fun migrate(database: SupportSQLiteDatabase) {
+        database.execSQL("CREATE TABLE IF NOT EXISTS `AffinityQuestion` (`id` INTEGER NOT NULL, `question` TEXT NOT NULL, `answered` INTEGER NOT NULL, `synced` INTEGER NOT NULL, PRIMARY KEY(`id`))")
+        database.execSQL("CREATE TABLE IF NOT EXISTS `AffinityQuestionAlternative` (`uid` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `question_id` INTEGER NOT NULL, `student_id` INTEGER NOT NULL, FOREIGN KEY(`question_id`) REFERENCES `AffinityQuestion`(`id`) ON UPDATE CASCADE ON DELETE CASCADE , FOREIGN KEY(`student_id`) REFERENCES `SStudent`(`id`) ON UPDATE CASCADE ON DELETE CASCADE)")
+        database.execSQL("CREATE INDEX IF NOT EXISTS `index_AffinityQuestionAlternative_student_id` ON `AffinityQuestionAlternative` (`student_id`)")
+        database.execSQL("CREATE INDEX IF NOT EXISTS `index_AffinityQuestionAlternative_question_id` ON `AffinityQuestionAlternative` (`question_id`)")
+    }
+}
+
+object M41TO42 : Migration(41, 42) {
+    override fun migrate(database: SupportSQLiteDatabase) {
+        database.execSQL("CREATE TABLE IF NOT EXISTS `Event` (`id` INTEGER NOT NULL, `name` TEXT NOT NULL, `description` TEXT NOT NULL, `imageUrl` TEXT NOT NULL, `creatorName` TEXT NOT NULL, `creatorId` INTEGER NOT NULL, `offeredBy` TEXT NOT NULL, `startDate` TEXT NOT NULL, `endDate` TEXT NOT NULL, `location` TEXT NOT NULL, `price` REAL, `certificateHours` INTEGER, `courseId` INTEGER, `featured` INTEGER NOT NULL, `createdAt` TEXT NOT NULL, `approved` INTEGER NOT NULL, `canModify` INTEGER NOT NULL, `participating` INTEGER NOT NULL, `fakeTemp` INTEGER, `sending` INTEGER, PRIMARY KEY(`id`))")
+    }
+}
+
+object M42TO43 : Migration(42, 43) {
+    override fun migrate(database: SupportSQLiteDatabase) {
+        database.execSQL("ALTER TABLE Event ADD COLUMN registerPage TEXT DEFAULT NULL")
+    }
+}
+
+object M43TO44 : Migration(43, 44) {
+    override fun migrate(database: SupportSQLiteDatabase) {
+        database.execSQL("ALTER TABLE Event ADD COLUMN canApprove INTEGER NOT NULL DEFAULT 0")
+    }
+}
+
+object M44TO45 : Migration(44, 45) {
+    override fun migrate(database: SupportSQLiteDatabase) {
+        database.execSQL("UPDATE Access SET valid = 1")
+    }
+}
+
+object M45TO46 : Migration(45, 46) {
+    override fun migrate(database: SupportSQLiteDatabase) {
+        database.execSQL("CREATE TABLE IF NOT EXISTS `Grades_TEMP` (`uid` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `class_id` INTEGER NOT NULL, `name` TEXT NOT NULL, `date` TEXT, `grade` TEXT, `grouping` INTEGER NOT NULL, `groupingName` TEXT NOT NULL, `notified` INTEGER NOT NULL, `uuid` TEXT NOT NULL, FOREIGN KEY(`class_id`) REFERENCES `Class`(`uid`) ON UPDATE CASCADE ON DELETE CASCADE )")
+        database.execSQL("INSERT INTO Grades_TEMP SELECT * FROM Grade")
+        database.execSQL("DROP TABLE Grade")
+        database.execSQL("ALTER TABLE Grades_TEMP RENAME TO Grade")
+
+        database.execSQL("CREATE INDEX IF NOT EXISTS `index_Grade_class_id` ON `Grade` (`class_id`)")
+        database.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_Grade_name_class_id_grouping` ON `Grade` (`name`, `class_id`, `grouping`)")
+        database.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_Grade_uuid` ON `Grade` (`uuid`)")
+    }
+}
+
+object M46TO47 : Migration(46, 47) {
+    override fun migrate(database: SupportSQLiteDatabase) {
+        database.execSQL("CREATE TABLE IF NOT EXISTS `Grades_TEMP` (`uid` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `class_id` INTEGER NOT NULL, `name` TEXT NOT NULL, `date` TEXT, `grade` TEXT, `grouping` INTEGER NOT NULL, `groupingName` TEXT NOT NULL, `notified` INTEGER NOT NULL, FOREIGN KEY(`class_id`) REFERENCES `Class`(`uid`) ON UPDATE CASCADE ON DELETE CASCADE )")
+        database.execSQL("INSERT INTO Grades_TEMP SELECT uid, class_id, name, date, grade, grouping, groupingName, notified FROM Grade")
+        database.execSQL("DROP TABLE Grade")
+        database.execSQL("ALTER TABLE Grades_TEMP RENAME TO Grade")
+
+        database.execSQL("CREATE INDEX IF NOT EXISTS `index_Grade_class_id` ON `Grade` (`class_id`)")
+        database.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_Grade_name_class_id_grouping` ON `Grade` (`name`, `class_id`, `grouping`)")
+    }
+}
+
+object M45TO47 : Migration(45, 47) {
+    override fun migrate(database: SupportSQLiteDatabase) {
+        database.execSQL("CREATE TABLE IF NOT EXISTS `Grades_TEMP` (`uid` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `class_id` INTEGER NOT NULL, `name` TEXT NOT NULL, `date` TEXT, `grade` TEXT, `grouping` INTEGER NOT NULL, `groupingName` TEXT NOT NULL, `notified` INTEGER NOT NULL, FOREIGN KEY(`class_id`) REFERENCES `Class`(`uid`) ON UPDATE CASCADE ON DELETE CASCADE )")
+        database.execSQL("INSERT INTO Grades_TEMP SELECT uid, class_id, name, date, grade, grouping, groupingName, notified FROM Grade")
+        database.execSQL("DROP TABLE Grade")
+        database.execSQL("ALTER TABLE Grades_TEMP RENAME TO Grade")
+
+        database.execSQL("CREATE INDEX IF NOT EXISTS `index_Grade_class_id` ON `Grade` (`class_id`)")
+        database.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_Grade_name_class_id_grouping` ON `Grade` (`name`, `class_id`, `grouping`)")
+    }
+}
+
+object M47TO48 : Migration(47, 48) {
+    override fun migrate(database: SupportSQLiteDatabase) {
+        database.execSQL("ALTER TABLE ClassGroup ADD COLUMN sagresId INTEGER DEFAULT NULL")
+    }
+}
+
+object M50TO51 : Migration(50, 51) {
+    override fun migrate(database: SupportSQLiteDatabase) {
+        val cursor = database.query("SELECT uid, content FROM Message")
+
+        val uidIndex = cursor.getColumnIndex("uid")
+        val contentIndex = cursor.getColumnIndex("content")
+
+        val statement = database.compileStatement("UPDATE Message SET content = ? WHERE uid = ?")
+
+        while (cursor.moveToNext()) {
+            val uid = cursor.getLong(uidIndex)
+            val content = cursor.getString(contentIndex).replace("\\r", "\r")
+            statement.bindString(1, content)
+            statement.bindLong(2, uid)
+            statement.executeUpdateDelete()
+        }
+    }
+}
+
+object M51TO52 : Migration(51, 52) {
+    override fun migrate(database: SupportSQLiteDatabase) {
+        database.execSQL("ALTER TABLE ClassGroup ADD COLUMN teacherEmail TEXT")
+        database.execSQL("ALTER TABLE Teacher ADD COLUMN email TEXT")
+        database.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_Teacher_sagresId` ON `Teacher` (`sagresId`)")
     }
 }

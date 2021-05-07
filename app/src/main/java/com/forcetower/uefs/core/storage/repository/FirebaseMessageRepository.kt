@@ -2,7 +2,7 @@
  * This file is part of the UNES Open Source Project.
  * UNES is licensed under the GNU GPLv3.
  *
- * Copyright (c) 2019.  João Paulo Sena <joaopaulo761@gmail.com>
+ * Copyright (c) 2020. João Paulo Sena <joaopaulo761@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -26,7 +26,6 @@ import androidx.annotation.MainThread
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.work.WorkManager
-import com.crashlytics.android.Crashlytics
 import com.forcetower.sagres.SagresNavigator
 import com.forcetower.uefs.AppExecutors
 import com.forcetower.uefs.BuildConfig
@@ -40,11 +39,9 @@ import com.forcetower.uefs.core.work.sync.SyncMainWorker
 import com.forcetower.uefs.feature.shared.extensions.toBooleanOrNull
 import com.forcetower.uefs.service.NotificationCreator
 import com.google.android.gms.tasks.Tasks
-import com.google.firebase.iid.FirebaseInstanceId
 import com.google.firebase.messaging.FirebaseMessaging
 import com.google.firebase.messaging.RemoteMessage
 import timber.log.Timber
-import java.util.Calendar
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -59,29 +56,29 @@ class FirebaseMessageRepository @Inject constructor(
     private val firebaseMessaging: FirebaseMessaging,
     private val executors: AppExecutors
 ) {
-    fun onMessageReceived(message: RemoteMessage) {
+    suspend fun onMessageReceived(message: RemoteMessage) {
         val data = message.data
         when {
-            data != null -> onDataMessageReceived(data)
+            data.keys.isNotEmpty() -> onDataMessageReceived(data)
             message.notification != null -> onSimpleMessageReceived(message)
             else -> Timber.d("An invalid message was received")
         }
     }
 
-    private fun onDataMessageReceived(data: Map<String, String>) {
+    private suspend fun onDataMessageReceived(data: Map<String, String>) {
         Timber.d("Data message received")
         when (data["identifier"]) {
             "event" -> eventNotification(data)
             "teacher" -> teacherNotification(data)
             "remote_database" -> promoteDatabase(data)
             "service" -> serviceNotificationExtractor(data)
-            "synchronize" -> universalSync(data)
+            "synchronize" -> universalSync()
             "reconnect_firebase" -> firebaseReconnect(data)
             "reschedule_sync" -> rescheduleSync(data)
             "hourglass_initiator" -> hourglassRunner()
             "worker_cancel" -> cancelWorker(data)
             "remote_preferences" -> promotePreferences(data)
-            null -> Crashlytics.log("Invalid notification received. No Identifier.")
+            null -> Timber.e("Invalid notification received. No Identifier.")
         }
     }
 
@@ -158,12 +155,11 @@ class FirebaseMessageRepository @Inject constructor(
          * Note que não é maior ou igual, este método se torna conveniente para que o remetente
          * possa enviar uma mensagem somente com o identificador reschedule_sync e o aparelho irá
          * fazer o reschedule mesmo que nenhum parâmetro seja passado.
-        **/
+         **/
         if (current > period && !forced) {
             Timber.d("No action needed")
         } else {
-            val worker = preferences.getString("stg_sync_worker_type", "0")?.toIntOrNull() ?: 0
-            when (worker) {
+            when (preferences.getString("stg_sync_worker_type", "0")?.toIntOrNull() ?: 0) {
                 0 -> SyncMainWorker.createWorker(context, period, true)
                 1 -> {
                     SyncLinkedWorker.stopWorker(context)
@@ -183,8 +179,7 @@ class FirebaseMessageRepository @Inject constructor(
         val unique = data["unique"]
         val version = data["version"]?.toIntOrNull()
         if (unique == null || version == null) {
-            Timber.d("You need to specify a unique key and a version for this to work")
-            Crashlytics.log("You need to specify a unique key and a version for this to work")
+            Timber.e("You need to specify a unique key and a version for this to work")
             return
         }
 
@@ -199,7 +194,7 @@ class FirebaseMessageRepository @Inject constructor(
         preferences.edit().putBoolean("${unique}__firebase", completed).apply()
     }
 
-    private fun universalSync(@Suppress("UNUSED_PARAMETER") data: Map<String, String>) {
+    private suspend fun universalSync() {
         syncRepository.performSync("Universal")
     }
 
@@ -210,13 +205,13 @@ class FirebaseMessageRepository @Inject constructor(
         val timestamp = data["timestamp"]
 
         if (message == null || teacher == null || timestamp == null || discipline == null) {
-            Crashlytics.log("Invalid notification received. No message, teacher or timestamp")
+            Timber.e("Invalid notification received. No message, teacher or timestamp")
             return
         }
 
         val sent = timestamp.toLongOrNull()
         if (sent == null) {
-            Crashlytics.log("Invalid notification received. Send time is invalid. Teacher: $teacher, $message")
+            Timber.e("Invalid notification received. Send time is invalid. Teacher: $teacher, $message")
             return
         }
 
@@ -227,13 +222,21 @@ class FirebaseMessageRepository @Inject constructor(
 
     private fun serviceNotification(data: Map<String, String>) {
         val title = data["title"]
-        val message = data["message"]
+        val message = data["message"]?.replace("\\n", "\n")
         val image = data["image"]
         val institution = data["institution"]
+        val course = data["course"]?.toLongOrNull()
 
         if (title == null || message == null) {
-            Crashlytics.log("Bad notification created. It was ignored")
+            Timber.e("Bad notification created. It was ignored")
             return
+        }
+
+        if (course != null) {
+            val profile = database.profileDao().selectMeDirect()
+            if (profile != null && profile.course != course) {
+                return
+            }
         }
 
         if (institution == null || institution == SagresNavigator.instance.getSelectedInstitution()) {
@@ -248,7 +251,7 @@ class FirebaseMessageRepository @Inject constructor(
         val image = data["image"]
 
         if (id == null || title == null || description == null) {
-            Crashlytics.log("Bad notification created. It was ignored")
+            Timber.e("Bad notification created. It was ignored")
             return
         }
 
@@ -276,7 +279,7 @@ class FirebaseMessageRepository @Inject constructor(
                 preferences.edit().putBoolean(unique, true).apply()
         } catch (t: Throwable) {
             Timber.d("Failed executing database promotion. ${t.message}")
-            Crashlytics.logException(t)
+            Timber.e(t)
         }
     }
 
@@ -284,7 +287,7 @@ class FirebaseMessageRepository @Inject constructor(
         Timber.d("Simple notification received")
         val notification = message.notification
         if (notification == null) {
-            Crashlytics.log("Invalidation of notification happened really quickly")
+            Timber.e("Invalidation of notification happened really quickly")
             return
         }
 
@@ -292,7 +295,7 @@ class FirebaseMessageRepository @Inject constructor(
         val title = notification.title
 
         if (content == null || title == null) {
-            Crashlytics.log("Bad notification created. It was ignored")
+            Timber.e("Bad notification created. It was ignored")
             return
         }
 
@@ -317,7 +320,7 @@ class FirebaseMessageRepository @Inject constructor(
                 try {
                     Tasks.await(task)
                 } catch (t: Throwable) {
-                    Crashlytics.logException(t)
+                    Timber.e(t)
                 }
             }
         }
@@ -326,25 +329,20 @@ class FirebaseMessageRepository @Inject constructor(
     @MainThread
     fun sendNewTokenOrNot(): LiveData<Boolean> {
         val result = MutableLiveData<Boolean>()
-        val day = preferences.getInt("_messaging_sync_daily_", -1)
-        val today = Calendar.getInstance().get(Calendar.DAY_OF_MONTH)
-        if (day != today) {
-            executors.diskIO().execute {
-                try {
-                    sendNewToken()
-                    result.postValue(true)
-                    preferences.edit().putInt("_messaging_sync_daily_", today).apply()
-                } catch (t: Throwable) {
-                    result.postValue(false)
-                }
+        executors.diskIO().execute {
+            try {
+                sendNewToken()
+                result.postValue(true)
+            } catch (t: Throwable) {
+                result.postValue(false)
             }
         }
         return result
     }
 
     private fun sendNewToken() {
-        val task = FirebaseInstanceId.getInstance().instanceId
+        val task = FirebaseMessaging.getInstance().token
         val value = Tasks.await(task)
-        onNewToken(value.token)
+        onNewToken(value)
     }
 }

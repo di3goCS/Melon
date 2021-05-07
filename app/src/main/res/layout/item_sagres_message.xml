@@ -3,7 +3,7 @@
   ~ This file is part of the UNES Open Source Project.
   ~ UNES is licensed under the GNU GPLv3.
   ~
-  ~ Copyright (c) 2019.  João Paulo Sena <joaopaulo761@gmail.com>
+  ~ Copyright (c) 2020. João Paulo Sena <joaopaulo761@gmail.com>
   ~
   ~ This program is free software: you can redistribute it and/or modify
   ~ it under the terms of the GNU General Public License as published by
@@ -113,7 +113,7 @@
                 android:contentDescription="@string/share_message"
                 android:onClick="@{() -> listener.onMessageShare(card, 0)}"
                 android:padding="8dp"
-                android:tint="?attr/colorAccent"
+                app:tint="?attr/colorAccent"
                 android:src="@drawable/ic_share_black_24dp"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toBottomOf="@+id/text_message_content" />

@@ -2,7 +2,7 @@
  * This file is part of the UNES Open Source Project.
  * UNES is licensed under the GNU GPLv3.
  *
- * Copyright (c) 2019.  João Paulo Sena <joaopaulo761@gmail.com>
+ * Copyright (c) 2020. João Paulo Sena <joaopaulo761@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -30,14 +30,17 @@ import androidx.room.PrimaryKey
 import com.forcetower.sagres.database.model.SagresDisciplineGroup
 import java.util.UUID
 
-@Entity(foreignKeys = [
-    ForeignKey(entity = Class::class, parentColumns = ["uid"], childColumns = ["class_id"], onDelete = CASCADE, onUpdate = CASCADE),
-    ForeignKey(entity = Teacher::class, parentColumns = ["uid"], childColumns = ["teacher_id"], onDelete = SET_NULL, onUpdate = CASCADE)
-], indices = [
-    Index(value = ["class_id", "group"], unique = true),
-    Index(value = ["uuid"], unique = true),
-    Index(value = ["teacher_id"], unique = false)
-])
+@Entity(
+    foreignKeys = [
+        ForeignKey(entity = Class::class, parentColumns = ["uid"], childColumns = ["class_id"], onDelete = CASCADE, onUpdate = CASCADE),
+        ForeignKey(entity = Teacher::class, parentColumns = ["uid"], childColumns = ["teacher_id"], onDelete = SET_NULL, onUpdate = CASCADE)
+    ],
+    indices = [
+        Index(value = ["class_id", "group"], unique = true),
+        Index(value = ["uuid"], unique = true),
+        Index(value = ["teacher_id"], unique = false)
+    ]
+)
 data class ClassGroup(
     @PrimaryKey(autoGenerate = true)
     var uid: Long = 0,
@@ -50,7 +53,9 @@ data class ClassGroup(
     var draft: Boolean = true,
     var ignored: Boolean = false,
     @ColumnInfo(name = "teacher_id")
-    var teacherId: Long? = null
+    var teacherId: Long? = null,
+    val sagresId: Long? = null,
+    val teacherEmail: String? = null
 ) {
 
     fun selectiveCopy(grp: SagresDisciplineGroup) {

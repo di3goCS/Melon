@@ -2,7 +2,7 @@
  * This file is part of the UNES Open Source Project.
  * UNES is licensed under the GNU GPLv3.
  *
- * Copyright (c) 2019.  João Paulo Sena <joaopaulo761@gmail.com>
+ * Copyright (c) 2020. João Paulo Sena <joaopaulo761@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,11 +22,11 @@ package com.forcetower.uefs
 
 import android.content.Context
 import android.content.ContextWrapper
-import androidx.preference.PreferenceManager
 import androidx.annotation.StringRes
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
-import com.forcetower.uefs.core.vm.Event
+import androidx.preference.PreferenceManager
+import com.forcetower.core.lifecycle.Event
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInAccount
 import com.google.android.gms.auth.api.signin.GoogleSignInClient
@@ -37,10 +37,10 @@ import com.google.android.gms.games.GamesClient
 import com.google.android.gms.games.LeaderboardsClient
 
 class GooglePlayGamesInstance(base: Context) : ContextWrapper(base) {
-    var playerName: String? = null
+    private var playerName: String? = null
     var signInClient: GoogleSignInClient? = null
     var achievementsClient: AchievementsClient? = null
-    var leaderboardClient: LeaderboardsClient? = null
+    private var leaderboardClient: LeaderboardsClient? = null
     var gamesClient: GamesClient? = null
 
     private val preferences = PreferenceManager.getDefaultSharedPreferences(this)
@@ -58,8 +58,8 @@ class GooglePlayGamesInstance(base: Context) : ContextWrapper(base) {
             signInClient = GoogleSignIn.getClient(
                 this,
                 GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_GAMES_SIGN_IN)
-                        // .requestEmail()
-                        .build()
+                    // .requestEmail()
+                    .build()
             )
         }
     }
@@ -134,7 +134,7 @@ class GooglePlayGamesInstance(base: Context) : ContextWrapper(base) {
         unlockAchievement(getString(resource))
     }
 
-    private fun unlockAchievement(achievement: String) {
+    fun unlockAchievement(achievement: String) {
         achievementsClient?.unlock(achievement)
     }
 
@@ -150,6 +150,10 @@ class GooglePlayGamesInstance(base: Context) : ContextWrapper(base) {
 
     fun updateProgress(@StringRes resource: Int, value: Int) {
         val id = getString(resource)
+        achievementsClient?.setSteps(id, value)
+    }
+
+    fun updateProgress(id: String, value: Int) {
         achievementsClient?.setSteps(id, value)
     }
 }

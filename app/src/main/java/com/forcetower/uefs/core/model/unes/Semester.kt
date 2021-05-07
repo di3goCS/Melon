@@ -2,7 +2,7 @@
  * This file is part of the UNES Open Source Project.
  * UNES is licensed under the GNU GPLv3.
  *
- * Copyright (c) 2019.  João Paulo Sena <joaopaulo761@gmail.com>
+ * Copyright (c) 2020. João Paulo Sena <joaopaulo761@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -50,10 +50,8 @@ data class Semester(
             val str2 = Integer.parseInt(o2.substring(0, 5))
 
             if (str1 == str2) {
-                if (o1.length > 5)
-                    -1
-                else
-                    1
+                if (o1.length > 5) -1
+                else 1
             } else {
                 str1.compareTo(str2) * -1
             }
@@ -64,6 +62,6 @@ data class Semester(
 
     companion object {
         fun fromSagres(s: SagresSemester) =
-                Semester(0, s.uefsId, s.name.trim(), s.codename.trim(), s.startInMillis, s.endInMillis, s.startClassesInMillis, s.endClassesInMillis)
+            Semester(0, s.uefsId, s.name.trim(), s.codename.trim(), s.startInMillis, s.endInMillis, s.startClassesInMillis, s.endClassesInMillis)
     }
 }

@@ -2,7 +2,7 @@
  * This file is part of the UNES Open Source Project.
  * UNES is licensed under the GNU GPLv3.
  *
- * Copyright (c) 2019.  João Paulo Sena <joaopaulo761@gmail.com>
+ * Copyright (c) 2020. João Paulo Sena <joaopaulo761@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -24,25 +24,21 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import com.forcetower.uefs.core.injection.Injectable
+import androidx.fragment.app.activityViewModels
 import com.forcetower.uefs.core.model.service.SyncFrequency
-import com.forcetower.uefs.core.vm.UViewModelFactory
 import com.forcetower.uefs.databinding.DialogSelectSynchronizationBinding
 import com.forcetower.uefs.feature.shared.RoundedDialog
-import com.forcetower.uefs.feature.shared.extensions.provideActivityViewModel
-import javax.inject.Inject
+import dagger.hilt.android.AndroidEntryPoint
 
-class SelectSyncDialog : RoundedDialog(), Injectable {
-    @Inject
-    lateinit var factory: UViewModelFactory
+@AndroidEntryPoint
+class SelectSyncDialog : RoundedDialog() {
 
-    private lateinit var setupViewModel: SetupViewModel
+    private val setupViewModel: SetupViewModel by activityViewModels()
     private lateinit var binding: DialogSelectSynchronizationBinding
     private var data: Array<SyncFrequency>? = null
     private var callback: FrequencySelectionCallback? = null
 
     override fun onChildCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View? {
-        setupViewModel = provideActivityViewModel(factory)
         return DialogSelectSynchronizationBinding.inflate(inflater, container, false).also {
             binding = it
             it.btnCancel.setOnClickListener { dismiss() }

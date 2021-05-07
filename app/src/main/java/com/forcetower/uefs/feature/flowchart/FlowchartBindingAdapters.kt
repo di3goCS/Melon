@@ -2,7 +2,7 @@
  * This file is part of the UNES Open Source Project.
  * UNES is licensed under the GNU GPLv3.
  *
- * Copyright (c) 2019.  João Paulo Sena <joaopaulo761@gmail.com>
+ * Copyright (c) 2020. João Paulo Sena <joaopaulo761@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,18 +21,12 @@
 package com.forcetower.uefs.feature.flowchart
 
 import android.widget.TextView
+import androidx.core.content.ContextCompat
 import androidx.databinding.BindingAdapter
+import com.forcetower.core.utils.ViewUtils
 import com.forcetower.sagres.utils.WordUtils
 import com.forcetower.uefs.R
 import com.forcetower.uefs.core.model.unes.FlowchartRequirementUI
-
-@BindingAdapter("departmentStrip")
-fun departmentStrip(tv: TextView, department: String?) {
-    department ?: return
-    val replaceOne = department.replace("departamento de ", "", ignoreCase = true)
-    val replaceTwo = replaceOne.replace("dept. de ", "", ignoreCase = true)
-    tv.text = replaceTwo
-}
 
 @BindingAdapter("requirementText")
 fun requirementText(tv: TextView, requirement: FlowchartRequirementUI?) {
@@ -47,4 +41,17 @@ fun requirementText(tv: TextView, requirement: FlowchartRequirementUI?) {
 
     text ?: return
     tv.text = text
+}
+
+@BindingAdapter(value = ["disciplineFlowchartColorCompleted", "disciplineFlowchartColorParticipate"])
+fun disciplineFlowchartTextColor(tv: TextView, completed: Boolean?, participating: Boolean?) {
+    val complete = completed ?: false
+    val participate = participating ?: false
+    val ctx = tv.context
+    val color = when {
+        complete -> ViewUtils.attributeColorUtils(ctx, R.attr.colorPrimary)
+        participate -> ContextCompat.getColor(ctx, R.color.yellow)
+        else -> ContextCompat.getColor(ctx, R.color.red)
+    }
+    tv.setTextColor(color)
 }

@@ -2,7 +2,7 @@
  * This file is part of the UNES Open Source Project.
  * UNES is licensed under the GNU GPLv3.
  *
- * Copyright (c) 2019.  João Paulo Sena <joaopaulo761@gmail.com>
+ * Copyright (c) 2020. João Paulo Sena <joaopaulo761@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -50,6 +50,23 @@ class ProfileRepository @Inject constructor(
     private val context: Context
 ) {
     fun getCommonProfile() = database.profileDao().selectMe()
+
+    fun getMeProfileAsync() {
+        executors.networkIO().execute {
+            getMeProfileSync()
+        }
+    }
+
+    @WorkerThread
+    fun getMeProfileSync() {
+        try {
+            val response = service.getMeStudent().execute()
+            val value = response.body()
+            if (value?.data != null) {
+                database.studentServiceDao().insertSingle(value.data.toCommon())
+            }
+        } catch (ignored: Throwable) {}
+    }
 
     fun getMeProfile(): LiveData<Resource<SStudent>> {
         return object : NetworkBoundResource<SStudent, UResponse<SStudentDTO>>(executors) {

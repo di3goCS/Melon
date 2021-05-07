@@ -2,7 +2,7 @@
  * This file is part of the UNES Open Source Project.
  * UNES is licensed under the GNU GPLv3.
  *
- * Copyright (c) 2019.  João Paulo Sena <joaopaulo761@gmail.com>
+ * Copyright (c) 2020. João Paulo Sena <joaopaulo761@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -25,24 +25,20 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.core.os.bundleOf
+import androidx.fragment.app.activityViewModels
 import androidx.lifecycle.Observer
-import com.forcetower.uefs.core.injection.Injectable
-import com.forcetower.uefs.core.vm.UViewModelFactory
 import com.forcetower.uefs.databinding.FragmentDisciplineOverviewBinding
 import com.forcetower.uefs.feature.disciplines.DisciplineViewModel
 import com.forcetower.uefs.feature.disciplines.disciplinedetail.DisciplineDetailsActivity.Companion.CLASS_GROUP_ID
 import com.forcetower.uefs.feature.shared.UFragment
-import com.forcetower.uefs.feature.shared.extensions.provideActivityViewModel
-import javax.inject.Inject
+import dagger.hilt.android.AndroidEntryPoint
 
-class OverviewFragment : UFragment(), Injectable {
-    @Inject
-    lateinit var factory: UViewModelFactory
+@AndroidEntryPoint
+class OverviewFragment : UFragment() {
     private lateinit var binding: FragmentDisciplineOverviewBinding
-    private lateinit var viewModel: DisciplineViewModel
+    private val viewModel: DisciplineViewModel by activityViewModels()
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View? {
-        viewModel = provideActivityViewModel(factory)
         return FragmentDisciplineOverviewBinding.inflate(inflater, container, false).also {
             binding = it
         }.root
@@ -60,8 +56,9 @@ class OverviewFragment : UFragment(), Injectable {
             }
         }
 
-        viewModel.clazz.observe(this, Observer { overviewAdapter.currentClazz = it })
-        viewModel.group.observe(this, Observer { overviewAdapter.currentGroup = it })
+        viewModel.clazz.observe(viewLifecycleOwner, Observer { overviewAdapter.currentClazz = it })
+        viewModel.group.observe(viewLifecycleOwner, Observer { overviewAdapter.currentGroup = it })
+        viewModel.schedule.observe(viewLifecycleOwner, Observer { overviewAdapter.currentSchedule = it })
     }
 
     companion object {

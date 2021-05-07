@@ -2,7 +2,7 @@
  * This file is part of the UNES Open Source Project.
  * UNES is licensed under the GNU GPLv3.
  *
- * Copyright (c) 2019.  João Paulo Sena <joaopaulo761@gmail.com>
+ * Copyright (c) 2020. João Paulo Sena <joaopaulo761@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -24,23 +24,19 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import androidx.fragment.app.activityViewModels
 import com.forcetower.uefs.R
-import com.forcetower.uefs.core.injection.Injectable
-import com.forcetower.uefs.core.vm.UViewModelFactory
 import com.forcetower.uefs.databinding.DialogCreateMechValueBinding
 import com.forcetower.uefs.feature.shared.RoundedDialog
-import com.forcetower.uefs.feature.shared.extensions.provideActivityViewModel
+import dagger.hilt.android.AndroidEntryPoint
 import timber.log.Timber
-import javax.inject.Inject
 
-class MechCreateDialog : RoundedDialog(), Injectable {
-    @Inject
-    lateinit var factory: UViewModelFactory
-    lateinit var viewModel: MechanicalViewModel
-    lateinit var binding: DialogCreateMechValueBinding
+@AndroidEntryPoint
+class MechCreateDialog : RoundedDialog() {
+    private val viewModel: MechanicalViewModel by activityViewModels()
+    private lateinit var binding: DialogCreateMechValueBinding
 
     override fun onChildCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View? {
-        viewModel = provideActivityViewModel(factory)
         return DialogCreateMechValueBinding.inflate(inflater, container, false).also {
             binding = it
         }.root
@@ -53,10 +49,10 @@ class MechCreateDialog : RoundedDialog(), Injectable {
                     val string = text.toString()
                     if (string.isNotBlank()) {
                         val parsed = string.replace(",", ".").toDoubleOrNull()
-                        if (parsed == null) {
-                            error = context.getString(R.string.field_must_be_a_number)
+                        error = if (parsed == null) {
+                            context.getString(R.string.field_must_be_a_number)
                         } else {
-                            error = null
+                            null
                         }
                     }
                 }
@@ -69,10 +65,10 @@ class MechCreateDialog : RoundedDialog(), Injectable {
                     val string = text.toString()
                     if (string.isNotBlank()) {
                         val parsed = string.replace(",", ".").toDoubleOrNull()
-                        if (parsed == null) {
-                            error = context.getString(R.string.field_must_be_a_number)
+                        error = if (parsed == null) {
+                            context.getString(R.string.field_must_be_a_number)
                         } else {
-                            error = null
+                            null
                         }
                     }
                 }

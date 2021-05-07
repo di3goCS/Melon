@@ -2,7 +2,7 @@
  * This file is part of the UNES Open Source Project.
  * UNES is licensed under the GNU GPLv3.
  *
- * Copyright (c) 2019.  João Paulo Sena <joaopaulo761@gmail.com>
+ * Copyright (c) 2020. João Paulo Sena <joaopaulo761@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,35 +20,47 @@
 
 package com.forcetower.uefs.feature.setup
 
+import android.annotation.SuppressLint
+import android.content.ActivityNotFoundException
 import android.content.ComponentName
 import android.content.Intent
-import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.provider.Settings
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import androidx.browser.customtabs.CustomTabColorSchemeParams
+import androidx.browser.customtabs.CustomTabsIntent
 import androidx.core.os.bundleOf
 import androidx.navigation.fragment.findNavController
+import com.forcetower.core.utils.ViewUtils
 import com.forcetower.uefs.R
-import com.forcetower.uefs.core.injection.Injectable
+import com.forcetower.uefs.core.util.VersionUtils
 import com.forcetower.uefs.databinding.FragmentSetupSpecialConfigBinding
 import com.forcetower.uefs.feature.shared.UFragment
+import com.forcetower.uefs.feature.web.CustomTabActivityHelper
 import com.google.firebase.analytics.FirebaseAnalytics
+import com.judemanutd.autostarter.AutoStartPermissionHelper
+import dagger.hilt.android.AndroidEntryPoint
+import timber.log.Timber
+import java.util.Locale
 import javax.inject.Inject
 
-class SyncSpecialFragment : UFragment(), Injectable {
-    @Inject
-    lateinit var analytics: FirebaseAnalytics
+@AndroidEntryPoint
+class SyncSpecialFragment : UFragment() {
+    @Inject lateinit var analytics: FirebaseAnalytics
 
     private lateinit var binding: FragmentSetupSpecialConfigBinding
 
-    override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View? {
+    override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         return FragmentSetupSpecialConfigBinding.inflate(inflater, container, false).also {
             binding = it
         }.root
     }
 
+    @SuppressLint("BatteryLife")
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
 
         binding.btnNext.setOnClickListener {
@@ -56,49 +68,65 @@ class SyncSpecialFragment : UFragment(), Injectable {
             requireActivity().finishAfterTransition()
         }
 
-        val manufacturer = Build.MANUFACTURER.toLowerCase()
+        val manufacturer = Build.MANUFACTURER.toLowerCase(Locale.getDefault())
 
+        val bundle = bundleOf("manufacturer" to manufacturer)
         if (savedInstanceState == null) {
-            analytics.logEvent("special_settings", bundleOf("manufacturer" to manufacturer))
+            analytics.logEvent("special_settings", bundle)
         }
 
         binding.btnConfig.setOnClickListener {
-            val intent = Intent()
-            when (manufacturer) {
-                "xiaomi" -> intent.component = ComponentName(
-                    "com.miui.securitycenter",
-                    "com.miui.permcenter.autostart.AutoStartManagementActivity"
-                )
-                "oppo" -> intent.component = ComponentName(
-                    "com.coloros.safecenter",
-                    "com.coloros.safecenter.permission.startup.StartupAppListActivity"
-                )
-                "vivo" -> intent.component = ComponentName(
-                    "com.vivo.permissionmanager",
-                    "com.vivo.permissionmanager.activity.BgStartUpManagerActivity"
-                )
-                "honor" -> intent.component = ComponentName(
-                    "com.huawei.systemmanager",
-                    "com.huawei.systemmanager.optimize.process.ProtectActivity"
-                )
-                "huawei" -> intent.component = ComponentName(
-                    "com.huawei.systemmanager",
-                    "com.huawei.systemmanager.optimize.process.ProtectActivity"
-                )
-                else -> intent.action = android.provider.Settings.ACTION_SETTINGS
-            }
-
-            val list = requireContext().packageManager.queryIntentActivities(intent, PackageManager.MATCH_DEFAULT_ONLY)
-            if (list.size > 0) {
-                if (intent.action != android.provider.Settings.ACTION_SETTINGS) {
-                    try {
-                        analytics.logEvent("open_special_settings", bundleOf("manufacturer" to manufacturer))
-                    } catch (ignored: Throwable) {}
-                }
-                requireContext().startActivity(intent)
+            analytics.logEvent("open_special_settings", bundle)
+            val success = AutoStartPermissionHelper.getInstance().getAutoStartPermission(requireContext())
+            if (success) {
+                analytics.logEvent("open_special_settings_completed", bundle)
             } else {
-                showSnack(getString(R.string.open_settings_failed))
+                analytics.logEvent("open_special_settings_failed", bundle)
             }
+        }
+
+        binding.labelAutoStartPath.setOnClickListener {
+            CustomTabActivityHelper.openCustomTab(
+                requireActivity(),
+                CustomTabsIntent.Builder()
+                    .setDefaultColorSchemeParams(
+                        CustomTabColorSchemeParams
+                            .Builder()
+                            .setToolbarColor(ViewUtils.attributeColorUtils(requireContext(), R.attr.colorPrimary))
+                            .build()
+                    )
+                    .setShareState(CustomTabsIntent.SHARE_STATE_ON)
+                    .build(),
+                Uri.parse("https://dontkillmyapp.com/${Build.BRAND.toLowerCase(Locale.getDefault())}")
+            )
+        }
+        if (VersionUtils.isMarshmallow()) {
+            binding.btnDoze.setOnClickListener {
+                if (Build.BRAND.equals("xiaomi", ignoreCase = true) || Build.BRAND.equals("redmi", ignoreCase = true)) {
+                    try {
+                        val intent = Intent()
+                        intent.component = ComponentName("com.miui.powerkeeper", "com.miui.powerkeeper.ui.HiddenAppsConfigActivity")
+                        intent.putExtra("package_name", requireContext().packageName)
+                        intent.putExtra("package_label", getText(R.string.app_name))
+                        startActivity(intent)
+                    } catch (throwable: ActivityNotFoundException) {
+                        Timber.e(throwable, "Xiaomi without a power keeper")
+                        showSnack(getString(R.string.settings_ignore_doze_failed))
+                    }
+                } else {
+                    val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
+                        data = Uri.parse("package:${requireContext().packageName}")
+                    }
+                    try {
+                        startActivity(intent)
+                    } catch (error: ActivityNotFoundException) {
+                        Timber.e(error, "This device doesn't support ignore optimizations")
+                        showSnack(getString(R.string.settings_ignore_doze_failed))
+                    }
+                }
+            }
+        } else {
+            binding.btnDoze.visibility = View.GONE
         }
     }
 }

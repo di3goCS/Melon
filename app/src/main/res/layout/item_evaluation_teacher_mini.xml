@@ -3,7 +3,7 @@
   ~ This file is part of the UNES Open Source Project.
   ~ UNES is licensed under the GNU GPLv3.
   ~
-  ~ Copyright (c) 2019.  João Paulo Sena <joaopaulo761@gmail.com>
+  ~ Copyright (c) 2020. João Paulo Sena <joaopaulo761@gmail.com>
   ~
   ~ This program is free software: you can redistribute it and/or modify
   ~ it under the terms of the GNU General Public License as published by
@@ -72,7 +72,7 @@
             android:layout_height="24dp"
             android:contentDescription="@string/evaluation_see_teacher_details"
             android:src="@drawable/ic_chevron_right_black_24dp"
-            android:tint="?attr/colorAccent"
+            app:tint="?attr/colorAccent"
             app:layout_constraintBottom_toBottomOf="@+id/last_seen"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintTop_toTopOf="@+id/name" />

@@ -2,7 +2,7 @@
  * This file is part of the UNES Open Source Project.
  * UNES is licensed under the GNU GPLv3.
  *
- * Copyright (c) 2019.  João Paulo Sena <joaopaulo761@gmail.com>
+ * Copyright (c) 2020. João Paulo Sena <joaopaulo761@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -38,6 +38,7 @@ import com.bumptech.glide.load.engine.GlideException
 import com.bumptech.glide.request.RequestListener
 import com.bumptech.glide.request.RequestOptions
 import com.bumptech.glide.request.target.Target
+import com.forcetower.core.adapters.ImageLoadListener
 import com.forcetower.uefs.R
 import com.forcetower.uefs.core.model.siecomp.Speaker
 
@@ -59,40 +60,42 @@ fun speakerImage(
         else -> R.drawable.ic_default_avatar_3
     }
 
-    if (speaker.image.isBlank()) {
+    if (speaker.image.isNullOrBlank()) {
         imageView.setImageResource(placeholderId)
     } else {
         val imageLoad = Glide.with(imageView)
-                .load(speaker.image)
-                .apply(
-                        RequestOptions()
-                                .placeholder(placeholderId)
-                                .circleCrop()
-                )
+            .load(speaker.image)
+            .apply(
+                RequestOptions()
+                    .placeholder(placeholderId)
+                    .circleCrop()
+            )
 
         if (listener != null) {
-            imageLoad.listener(object : RequestListener<Drawable> {
-                override fun onResourceReady(
-                    resource: Drawable?,
-                    model: Any?,
-                    target: Target<Drawable>?,
-                    dataSource: DataSource?,
-                    isFirstResource: Boolean
-                ): Boolean {
-                    listener.onImageLoaded()
-                    return false
-                }
+            imageLoad.listener(
+                object : RequestListener<Drawable> {
+                    override fun onResourceReady(
+                        resource: Drawable,
+                        model: Any?,
+                        target: Target<Drawable>?,
+                        dataSource: DataSource?,
+                        isFirstResource: Boolean
+                    ): Boolean {
+                        listener.onImageLoaded(resource)
+                        return false
+                    }
 
-                override fun onLoadFailed(
-                    e: GlideException?,
-                    model: Any?,
-                    target: Target<Drawable>?,
-                    isFirstResource: Boolean
-                ): Boolean {
-                    listener.onImageLoadFailed()
-                    return false
+                    override fun onLoadFailed(
+                        e: GlideException?,
+                        model: Any?,
+                        target: Target<Drawable>?,
+                        isFirstResource: Boolean
+                    ): Boolean {
+                        listener.onImageLoadFailed()
+                        return false
+                    }
                 }
-            })
+            )
         }
 
         imageLoad.into(imageView)
@@ -108,12 +111,12 @@ fun createSpeakerLinksView(
     linkedInUrl: String?
 ) {
     val links =
-            mapOf(
-                R.string.speaker_link_facebook to facebookUrl,
-                R.string.speaker_link_twitter to twitterUrl,
-                R.string.speaker_link_github to githubUrl,
-                R.string.speaker_link_linkedin to linkedInUrl
-            )
+        mapOf(
+            R.string.speaker_link_facebook to facebookUrl,
+            R.string.speaker_link_twitter to twitterUrl,
+            R.string.speaker_link_github to githubUrl,
+            R.string.speaker_link_linkedin to linkedInUrl
+        )
             .filterValues { !it.isNullOrEmpty() }
             .map { (labelRes, url) ->
                 val span = SpannableString(textView.context.getString(labelRes))
@@ -136,12 +139,4 @@ fun createSpeakerLinksView(
     } else {
         textView.visibility = GONE
     }
-}
-
-/**
- * An interface for responding to image loading completion.
- */
-interface ImageLoadListener {
-    fun onImageLoaded()
-    fun onImageLoadFailed()
 }

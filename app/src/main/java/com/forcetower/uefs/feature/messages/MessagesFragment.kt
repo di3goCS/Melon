@@ -2,7 +2,7 @@
  * This file is part of the UNES Open Source Project.
  * UNES is licensed under the GNU GPLv3.
  *
- * Copyright (c) 2019.  João Paulo Sena <joaopaulo761@gmail.com>
+ * Copyright (c) 2020. João Paulo Sena <joaopaulo761@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,6 +20,7 @@
 
 package com.forcetower.uefs.feature.messages
 
+import android.content.SharedPreferences
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -30,47 +31,41 @@ import androidx.appcompat.app.AlertDialog
 import androidx.core.os.bundleOf
 import androidx.fragment.app.FragmentManager
 import androidx.fragment.app.FragmentPagerAdapter
+import androidx.fragment.app.activityViewModels
+import androidx.lifecycle.lifecycleScope
+import com.forcetower.core.lifecycle.EventObserver
 import com.forcetower.uefs.R
-import com.forcetower.uefs.core.injection.Injectable
+import com.forcetower.uefs.UApplication
+import com.forcetower.uefs.core.storage.database.UDatabase
 import com.forcetower.uefs.core.util.getLinks
-import com.forcetower.uefs.core.vm.EventObserver
-import com.forcetower.uefs.core.vm.UViewModelFactory
+import com.forcetower.uefs.core.util.isStudentFromUEFS
 import com.forcetower.uefs.databinding.FragmentAllMessagesBinding
 import com.forcetower.uefs.feature.home.HomeViewModel
+import com.forcetower.uefs.feature.messages.dynamic.AERIMessageFragment
 import com.forcetower.uefs.feature.profile.ProfileViewModel
 import com.forcetower.uefs.feature.shared.UFragment
 import com.forcetower.uefs.feature.shared.extensions.openURL
-import com.forcetower.uefs.feature.shared.extensions.provideActivityViewModel
+import com.google.android.material.snackbar.Snackbar
 import com.google.android.material.tabs.TabLayout
+import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-class MessagesFragment : UFragment(), Injectable {
-    companion object {
-        const val EXTRA_MESSAGES_FLAG = "unes.messages.is_svc_message"
-
-        fun newInstance(unesService: Boolean): MessagesFragment {
-            return MessagesFragment().apply {
-                arguments = bundleOf(EXTRA_MESSAGES_FLAG to unesService)
-            }
-        }
-    }
-
+@AndroidEntryPoint
+class MessagesFragment : UFragment() {
     @Inject
-    lateinit var factory: UViewModelFactory
+    lateinit var preferences: SharedPreferences
+    @Inject
+    lateinit var database: UDatabase
 
     private lateinit var binding: FragmentAllMessagesBinding
-    private lateinit var profileViewModel: ProfileViewModel
-    private lateinit var messagesViewModel: MessagesViewModel
-    private lateinit var homeViewModel: HomeViewModel
+    private val profileViewModel: ProfileViewModel by activityViewModels()
+    private val messagesViewModel: MessagesViewModel by activityViewModels()
+    private val homeViewModel: HomeViewModel by activityViewModels()
 
-    override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View? {
-        profileViewModel = provideActivityViewModel(factory)
-        messagesViewModel = provideActivityViewModel(factory)
-        homeViewModel = provideActivityViewModel(factory)
-
+    override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         binding = FragmentAllMessagesBinding.inflate(inflater, container, false).apply {
             profileViewModel = this@MessagesFragment.profileViewModel
-            messagesViewModel = this@MessagesFragment.messagesViewModel
             lifecycleOwner = this@MessagesFragment
         }
 
@@ -89,24 +84,34 @@ class MessagesFragment : UFragment(), Injectable {
         tabLayout.addOnTabSelectedListener(TabLayout.ViewPagerOnTabSelectedListener(binding.pagerMessage))
         binding.pagerMessage.addOnPageChangeListener(TabLayout.TabLayoutOnPageChangeListener(tabLayout))
 
-        val sagres = SagresMessagesFragment()
-        val unes = UnesMessagesFragment()
+        val fragments = mutableListOf<UFragment>()
+        fragments += SagresMessagesFragment()
+        fragments += UnesMessagesFragment()
+        if (preferences.isStudentFromUEFS() && preferences.getBoolean("stg_advanced_aeri_tab", true)) {
+            fragments += AERIMessageFragment()
+        }
 
-        binding.pagerMessage.adapter = SectionFragmentAdapter(childFragmentManager, listOf(sagres, unes))
-    }
-
-    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
-        val unes = arguments?.getBoolean(EXTRA_MESSAGES_FLAG, false) ?: false
-        val open = savedInstanceState?.getBoolean(EXTRA_MESSAGES_FLAG, true) ?: true
-        if (unes && open) {
-            binding.pagerMessage.setCurrentItem(1, true)
+        binding.pagerMessage.adapter = SectionFragmentAdapter(childFragmentManager, fragments)
+        binding.textToolbarTitle.setOnLongClickListener {
+            lifecycleScope.launch {
+                database.messageDao().deleteAllSuspend()
+            }
+            true
+        }
+        binding.textToolbarTitle.setOnClickListener {
+            (requireContext().applicationContext as UApplication).messageToolbarDevClickCount++
         }
     }
 
-    override fun onActivityCreated(savedInstanceState: Bundle?) {
-        super.onActivityCreated(savedInstanceState)
-        messagesViewModel.messageClick.observe(this, EventObserver { openLink(it) })
-        messagesViewModel.snackMessage.observe(this, EventObserver { showSnack(getString(it), true) })
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        val index = arguments?.getInt(EXTRA_MESSAGES_FLAG, 0) ?: 0
+        val open = savedInstanceState?.getBoolean(EXTRA_OPEN_MESSAGES_FLAG, true) ?: true
+        if (index > 0 && open) {
+            binding.pagerMessage.setCurrentItem(index, true)
+        }
+
+        messagesViewModel.messageClick.observe(viewLifecycleOwner, EventObserver { openLink(it) })
+        messagesViewModel.snackMessage.observe(viewLifecycleOwner, EventObserver { showSnack(getString(it), Snackbar.LENGTH_LONG) })
     }
 
     private fun openLink(content: String) {
@@ -148,7 +153,7 @@ class MessagesFragment : UFragment(), Injectable {
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
-        outState.putBoolean(EXTRA_MESSAGES_FLAG, false)
+        outState.putBoolean(EXTRA_OPEN_MESSAGES_FLAG, false)
         super.onSaveInstanceState(outState)
     }
 
@@ -156,5 +161,16 @@ class MessagesFragment : UFragment(), Injectable {
         override fun getCount() = fragments.size
         override fun getItem(position: Int) = fragments[position]
         override fun getPageTitle(position: Int) = fragments[position].displayName
+    }
+
+    companion object {
+        const val EXTRA_MESSAGES_FLAG = "unes.messages.is_svc_message"
+        const val EXTRA_OPEN_MESSAGES_FLAG = "unes.messages.opened_notification"
+
+        fun newInstance(fragmentIndex: Int): MessagesFragment {
+            return MessagesFragment().apply {
+                arguments = bundleOf(EXTRA_MESSAGES_FLAG to fragmentIndex)
+            }
+        }
     }
 }

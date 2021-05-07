@@ -2,7 +2,7 @@
  * This file is part of the UNES Open Source Project.
  * UNES is licensed under the GNU GPLv3.
  *
- * Copyright (c) 2019.  João Paulo Sena <joaopaulo761@gmail.com>
+ * Copyright (c) 2020. João Paulo Sena <joaopaulo761@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -37,6 +37,11 @@ inline fun <reified T : ViewDataBinding> ViewGroup.inflate(@LayoutRes res: Int, 
 
 inline fun <reified T : ViewDataBinding> LayoutInflater.inflate(@LayoutRes res: Int): T {
     return DataBindingUtil.inflate(this, res, null, false)
+}
+
+inline fun <T : ViewDataBinding> T.executeBindingsAfter(block: T.() -> Unit) {
+    block()
+    executePendingBindings()
 }
 
 fun RecyclerView.clearDecorations() {

@@ -2,7 +2,7 @@
  * This file is part of the UNES Open Source Project.
  * UNES is licensed under the GNU GPLv3.
  *
- * Copyright (c) 2019.  João Paulo Sena <joaopaulo761@gmail.com>
+ * Copyright (c) 2020. João Paulo Sena <joaopaulo761@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -26,31 +26,32 @@ import com.google.gson.annotations.SerializedName
 fun List<ClassStatsData>.transformToNewStyle(): List<DisciplineData> {
     // Classes with same identifier means they are a part of a conjunct class (Disciplines separated by T and P)
     return groupBy { it.identifier }.values
-            // if the T or the P has no grades, they're stripped
+        // if the T or the P has no grades, they're stripped
 //            .filter { it.isNotEmpty() }
-            // iterate over the lists and transform to new style
-            .map { list ->
-                // The new values are composed by all the grades from all sources of the class
-                val values = list.map { SimpleGrade(it.evaluationName, it.evaluationDate, it.evaluationGrade) }
-                // The first teacher takes all the grades to himself,
-                //
-                // since the second (or maybe third) teacher will also be iterated over,
-                // they all will receive the grade
-                val first = list[0]
-                DisciplineData(
-                        first.code,
-                        first.disciplineName,
-                        first.disciplineCredits,
-                        first.group,
-                        first.semester,
-                        first.semesterName,
-                        first.teacher,
-                        first.grade,
-                        first.partialScore,
-                        values
-                )
-            }
-            // strip data with no grades...
+        // iterate over the lists and transform to new style
+        .map { list ->
+            // The new values are composed by all the grades from all sources of the class
+            val values = list.map { SimpleGrade(it.evaluationName, it.evaluationDate, it.evaluationGrade) }.filter { it.name != null }
+            // The first teacher takes all the grades to himself,
+            //
+            // since the second (or maybe third) teacher will also be iterated over,
+            // they all will receive the grade
+            val first = list[0]
+            DisciplineData(
+                first.code,
+                first.disciplineName,
+                first.disciplineCredits,
+                first.group,
+                first.semester,
+                first.semesterName,
+                first.teacher,
+                first.teacherEmail,
+                first.grade,
+                first.partialScore,
+                values
+            )
+        }
+    // strip data with no grades...
 //            .filter { it.values.isNotEmpty() }
 }
 
@@ -76,6 +77,8 @@ data class DisciplineData(
     val semesterName: String,
     @SerializedName("teacher")
     val teacherName: String,
+    @SerializedName("teacherEmail")
+    val teacherEmail: String?,
     @SerializedName("grade")
     val finalGrade: Double?,
     @SerializedName("partial_score")
@@ -85,7 +88,7 @@ data class DisciplineData(
 )
 
 data class SimpleGrade(
-    val name: String,
+    val name: String? = null,
     val date: String? = null,
     val value: String? = null
 )

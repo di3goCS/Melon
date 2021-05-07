@@ -2,7 +2,7 @@
  * This file is part of the UNES Open Source Project.
  * UNES is licensed under the GNU GPLv3.
  *
- * Copyright (c) 2019.  João Paulo Sena <joaopaulo761@gmail.com>
+ * Copyright (c) 2020. João Paulo Sena <joaopaulo761@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,12 +21,12 @@
 package com.forcetower.uefs.feature.schedule
 
 import android.view.View
-import com.forcetower.uefs.core.storage.database.accessors.GroupWithClass
-import com.forcetower.uefs.core.storage.database.accessors.LocationWithGroup
+import com.forcetower.uefs.core.storage.database.aggregation.ClassGroupWithData
+import com.forcetower.uefs.core.storage.database.aggregation.ClassLocationWithData
 
 interface ScheduleActions {
     fun onLongClick(view: View): Boolean
-    fun onClick(view: View, group: GroupWithClass)
+    fun onClick(view: View, group: ClassGroupWithData)
     fun refreshData()
-    fun onLocationClick(view: View, location: LocationWithGroup)
+    fun onLocationClick(view: View, location: ClassLocationWithData)
 }

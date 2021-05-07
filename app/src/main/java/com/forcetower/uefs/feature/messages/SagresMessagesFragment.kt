@@ -2,7 +2,7 @@
  * This file is part of the UNES Open Source Project.
  * UNES is licensed under the GNU GPLv3.
  *
- * Copyright (c) 2019.  João Paulo Sena <joaopaulo761@gmail.com>
+ * Copyright (c) 2020. João Paulo Sena <joaopaulo761@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -24,36 +24,31 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import androidx.lifecycle.Observer
-import androidx.recyclerview.widget.LinearLayoutManager
-import com.forcetower.uefs.core.injection.Injectable
-import com.forcetower.uefs.core.vm.UViewModelFactory
+import androidx.fragment.app.activityViewModels
 import com.forcetower.uefs.databinding.FragmentSagresMessagesBinding
 import com.forcetower.uefs.feature.shared.UFragment
-import com.forcetower.uefs.feature.shared.extensions.provideActivityViewModel
-import javax.inject.Inject
+import dagger.hilt.android.AndroidEntryPoint
 
-class SagresMessagesFragment : UFragment(), Injectable {
-    @Inject
-    lateinit var vmFactory: UViewModelFactory
-
+@AndroidEntryPoint
+class SagresMessagesFragment : UFragment() {
     init { displayName = "Sagres" }
 
-    private val manager by lazy { LinearLayoutManager(context) }
     private lateinit var binding: FragmentSagresMessagesBinding
-    private lateinit var viewModel: MessagesViewModel
+    private val viewModel: MessagesViewModel by activityViewModels()
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View? {
-        viewModel = provideActivityViewModel(vmFactory)
-        binding = FragmentSagresMessagesBinding.inflate(inflater, container, false)
-        return binding.root
+        return FragmentSagresMessagesBinding.inflate(inflater, container, false).also {
+            binding = it
+        }.apply {
+            messagesViewModel = viewModel
+            lifecycleOwner = this@SagresMessagesFragment
+        }.root
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         val adapter = SagresMessageAdapter(this, viewModel)
         binding.apply {
             recyclerSagresMessages.adapter = adapter
-            recyclerSagresMessages.layoutManager = manager
             recyclerSagresMessages.itemAnimator?.run {
                 addDuration = 120L
                 moveDuration = 120L
@@ -62,6 +57,6 @@ class SagresMessagesFragment : UFragment(), Injectable {
             }
         }
 
-        viewModel.messages.observe(this, Observer { adapter.submitList(it) })
+        viewModel.messages.observe(viewLifecycleOwner, { adapter.submitList(it) })
     }
 }

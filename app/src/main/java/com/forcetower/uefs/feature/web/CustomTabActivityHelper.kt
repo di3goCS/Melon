@@ -2,7 +2,7 @@
  * This file is part of the UNES Open Source Project.
  * UNES is licensed under the GNU GPLv3.
  *
- * Copyright (c) 2019.  João Paulo Sena <joaopaulo761@gmail.com>
+ * Copyright (c) 2020. João Paulo Sena <joaopaulo761@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -25,7 +25,6 @@ import android.content.ComponentName
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
-
 import androidx.browser.customtabs.CustomTabsClient
 import androidx.browser.customtabs.CustomTabsIntent
 import androidx.browser.customtabs.CustomTabsServiceConnection
@@ -34,7 +33,7 @@ import androidx.browser.customtabs.CustomTabsSession
 class CustomTabActivityHelper {
     private var mCustomTabsSession: CustomTabsSession? = null
     private var mClient: CustomTabsClient? = null
-    private var mConnection: CustomTabsServiceConnection? = null
+    private lateinit var mConnection: CustomTabsServiceConnection
     private var mConnectionCallback: ConnectionCallback? = null
 
     /**
@@ -82,8 +81,8 @@ class CustomTabActivityHelper {
      * @param activity the activity that is bound to the service
      */
     fun unbindCustomTabsService(activity: Activity) {
-        if (mConnection == null) return
-        activity.unbindService(mConnection!!)
+        if (!::mConnection.isInitialized) return
+        activity.unbindService(mConnection)
         mClient = null
         mCustomTabsSession = null
     }

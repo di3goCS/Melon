@@ -2,7 +2,7 @@
  * This file is part of the UNES Open Source Project.
  * UNES is licensed under the GNU GPLv3.
  *
- * Copyright (c) 2019.  João Paulo Sena <joaopaulo761@gmail.com>
+ * Copyright (c) 2020. João Paulo Sena <joaopaulo761@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -28,34 +28,29 @@ import android.view.ViewGroup
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.FragmentManager
 import androidx.fragment.app.FragmentPagerAdapter
-import androidx.lifecycle.Observer
+import androidx.fragment.app.activityViewModels
 import androidx.viewpager.widget.ViewPager
+import com.forcetower.core.lifecycle.EventObserver
 import com.forcetower.uefs.R
-import com.forcetower.uefs.core.injection.Injectable
 import com.forcetower.uefs.core.storage.resource.Status
 import com.forcetower.uefs.core.util.siecomp.TimeUtils
-import com.forcetower.uefs.core.vm.EventObserver
-import com.forcetower.uefs.core.vm.UViewModelFactory
 import com.forcetower.uefs.databinding.FragmentEventScheduleBinding
 import com.forcetower.uefs.feature.shared.UFragment
-import com.forcetower.uefs.feature.shared.extensions.provideActivityViewModel
 import com.forcetower.uefs.feature.siecomp.SIECOMPEventViewModel
 import com.forcetower.uefs.feature.siecomp.editor.SIECOMPEditorActivity
 import com.forcetower.uefs.feature.siecomp.session.EventSessionDetailsActivity
 import com.google.android.material.tabs.TabLayout
-import javax.inject.Inject
+import dagger.hilt.android.AndroidEntryPoint
 
-class ScheduleFragment : UFragment(), Injectable {
-    @Inject
-    lateinit var factory: UViewModelFactory
-    private lateinit var viewModel: SIECOMPEventViewModel
+@AndroidEntryPoint
+class ScheduleFragment : UFragment() {
+    private val viewModel: SIECOMPEventViewModel by activityViewModels()
     private lateinit var binding: FragmentEventScheduleBinding
     private lateinit var viewPager: ViewPager
     private lateinit var tabs: TabLayout
     private var count = 0
 
-    override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View? {
-        viewModel = provideActivityViewModel(factory)
+    override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         FragmentEventScheduleBinding.inflate(inflater, container, false).also {
             binding = it
             tabs = binding.tabLayout
@@ -66,13 +61,19 @@ class ScheduleFragment : UFragment(), Injectable {
             executePendingBindings()
         }
 
-        viewModel.navigateToSessionAction.observe(this, EventObserver {
-            openSessionDetails(it)
-        })
+        viewModel.navigateToSessionAction.observe(
+            viewLifecycleOwner,
+            EventObserver {
+                openSessionDetails(it)
+            }
+        )
 
-        viewModel.snackbarMessenger.observe(this, EventObserver {
-            showSnack(getString(it))
-        })
+        viewModel.snackbarMessenger.observe(
+            viewLifecycleOwner,
+            EventObserver {
+                showSnack(getString(it))
+            }
+        )
 
         return binding.root
     }
@@ -87,23 +88,26 @@ class ScheduleFragment : UFragment(), Injectable {
                 startActivity(Intent(requireContext(), SIECOMPEditorActivity::class.java))
             }
         }
-        viewModel.access.observe(this, Observer {
-            binding.createSessionFloat.visibility = if (it != null) {
-                View.VISIBLE
-            } else {
-                View.GONE
+        viewModel.access.observe(
+            viewLifecycleOwner,
+            {
+                binding.createSessionFloat.visibility = if (it != null) {
+                    View.VISIBLE
+                } else {
+                    View.GONE
+                }
             }
-        })
-    }
+        )
 
-    override fun onActivityCreated(savedInstanceState: Bundle?) {
-        super.onActivityCreated(savedInstanceState)
-        viewModel.refreshSource.observe(this, Observer {
-            when (it.status) {
-                Status.ERROR -> showSnack(getString(R.string.siecomp_error_updating_info))
-                Status.LOADING, Status.SUCCESS -> {}
+        viewModel.refreshSource.observe(
+            viewLifecycleOwner,
+            {
+                when (it.status) {
+                    Status.ERROR -> showSnack(getString(R.string.siecomp_error_updating_info))
+                    Status.LOADING, Status.SUCCESS -> {}
+                }
             }
-        })
+        )
 
         if (!viewModel.sessionsLoaded) {
             viewModel.sessionsLoaded = true
@@ -122,7 +126,7 @@ class ScheduleFragment : UFragment(), Injectable {
             return ScheduleDayFragment.newInstance(position)
         }
 
-        override fun getPageTitle(position: Int): CharSequence? {
+        override fun getPageTitle(position: Int): CharSequence {
             return TimeUtils.EventDays[position].formatMonthDay()
         }
     }

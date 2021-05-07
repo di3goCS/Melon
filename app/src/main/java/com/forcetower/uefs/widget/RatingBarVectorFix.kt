@@ -2,7 +2,7 @@
  * This file is part of the UNES Open Source Project.
  * UNES is licensed under the GNU GPLv3.
  *
- * Copyright (c) 2019.  João Paulo Sena <joaopaulo761@gmail.com>
+ * Copyright (c) 2020. João Paulo Sena <joaopaulo761@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,6 +20,7 @@
 
 package com.forcetower.uefs.widget
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapShader
@@ -35,7 +36,6 @@ import android.graphics.drawable.shapes.Shape
 import android.util.AttributeSet
 import android.view.Gravity
 import android.view.View
-
 import androidx.appcompat.graphics.drawable.DrawableWrapper
 import androidx.appcompat.widget.AppCompatRatingBar
 
@@ -66,6 +66,7 @@ class RatingBarVectorFix @JvmOverloads constructor(
      * Converts a drawable to a tiled version of itself. It will recursively
      * traverse layer and state list drawables.
      */
+    @SuppressLint("RestrictedApi")
     private fun tileify(drawable: Drawable, clip: Boolean): Drawable {
         if (drawable is DrawableWrapper) {
             var inner: Drawable? = drawable.wrappedDrawable
@@ -74,17 +75,19 @@ class RatingBarVectorFix @JvmOverloads constructor(
                 drawable.wrappedDrawable = inner
             }
         } else if (drawable is LayerDrawable) {
-            val N = drawable.numberOfLayers
-            val outDrawables = arrayOfNulls<Drawable>(N)
+            val layers = drawable.numberOfLayers
+            val outDrawables = arrayOfNulls<Drawable>(layers)
 
-            for (i in 0 until N) {
+            for (i in 0 until layers) {
                 val id = drawable.getId(i)
-                outDrawables[i] = tileify(drawable.getDrawable(i),
-                        id == android.R.id.progress || id == android.R.id.secondaryProgress)
+                outDrawables[i] = tileify(
+                    drawable.getDrawable(i),
+                    id == android.R.id.progress || id == android.R.id.secondaryProgress
+                )
             }
             val newBg = LayerDrawable(outDrawables)
 
-            for (i in 0 until N) {
+            for (i in 0 until layers) {
                 newBg.setId(i, drawable.getId(i))
             }
 
@@ -96,13 +99,19 @@ class RatingBarVectorFix @JvmOverloads constructor(
             }
 
             val shapeDrawable = ShapeDrawable(drawableShape)
-            val bitmapShader = BitmapShader(tileBitmap,
-                    Shader.TileMode.REPEAT, Shader.TileMode.CLAMP)
+            val bitmapShader = BitmapShader(
+                tileBitmap,
+                Shader.TileMode.REPEAT,
+                Shader.TileMode.CLAMP
+            )
             shapeDrawable.paint.shader = bitmapShader
             shapeDrawable.paint.colorFilter = drawable.paint.colorFilter
             return if (clip)
-                ClipDrawable(shapeDrawable, Gravity.START,
-                        ClipDrawable.HORIZONTAL)
+                ClipDrawable(
+                    shapeDrawable,
+                    Gravity.START,
+                    ClipDrawable.HORIZONTAL
+                )
             else
                 shapeDrawable
         } else {
@@ -127,7 +136,8 @@ class RatingBarVectorFix @JvmOverloads constructor(
             val width = mSampleTile!!.width * numStars
             setMeasuredDimension(
                 View.resolveSizeAndState(width, widthMeasureSpec, 0),
-                    measuredHeight)
+                measuredHeight
+            )
         }
     }
 }

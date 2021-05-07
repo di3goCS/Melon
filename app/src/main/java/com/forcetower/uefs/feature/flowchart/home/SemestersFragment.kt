@@ -2,7 +2,7 @@
  * This file is part of the UNES Open Source Project.
  * UNES is licensed under the GNU GPLv3.
  *
- * Copyright (c) 2019.  João Paulo Sena <joaopaulo761@gmail.com>
+ * Copyright (c) 2020. João Paulo Sena <joaopaulo761@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -25,25 +25,22 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.core.os.bundleOf
+import androidx.fragment.app.viewModels
 import androidx.lifecycle.Observer
 import androidx.navigation.fragment.findNavController
-import com.forcetower.uefs.core.injection.Injectable
+import com.forcetower.core.lifecycle.EventObserver
 import com.forcetower.uefs.core.model.unes.FlowchartSemesterUI
 import com.forcetower.uefs.core.util.toJson
-import com.forcetower.uefs.core.vm.EventObserver
-import com.forcetower.uefs.core.vm.UViewModelFactory
 import com.forcetower.uefs.databinding.FragmentFlowchartSemestersBinding
 import com.forcetower.uefs.feature.flowchart.FlowchartViewModel
 import com.forcetower.uefs.feature.shared.UFragment
-import com.forcetower.uefs.feature.shared.extensions.provideViewModel
+import dagger.hilt.android.AndroidEntryPoint
 import timber.log.Timber
-import javax.inject.Inject
 
-class SemestersFragment : UFragment(), Injectable {
-    @Inject
-    lateinit var factory: UViewModelFactory
+@AndroidEntryPoint
+class SemestersFragment : UFragment() {
     private lateinit var binding: FragmentFlowchartSemestersBinding
-    private lateinit var viewModel: FlowchartViewModel
+    private val viewModel: FlowchartViewModel by viewModels()
     private lateinit var adapter: SemesterAdapter
 
     init {
@@ -51,7 +48,6 @@ class SemestersFragment : UFragment(), Injectable {
     }
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View? {
-        viewModel = provideViewModel(factory)
         adapter = SemesterAdapter(viewModel)
         viewModel.setCourse(arguments?.getLong("course_id") ?: 0)
         return FragmentFlowchartSemestersBinding.inflate(inflater, container, false).also {
@@ -63,8 +59,8 @@ class SemestersFragment : UFragment(), Injectable {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        viewModel.flowchart.observe(this, Observer { onSemestersReceived(it) })
-        viewModel.onSemesterSelect.observe(this, EventObserver { onSemesterSelected(it) })
+        viewModel.flowchart.observe(viewLifecycleOwner, Observer { onSemestersReceived(it) })
+        viewModel.onSemesterSelect.observe(viewLifecycleOwner, EventObserver { onSemesterSelected(it) })
     }
 
     private fun onSemestersReceived(values: List<FlowchartSemesterUI>) {

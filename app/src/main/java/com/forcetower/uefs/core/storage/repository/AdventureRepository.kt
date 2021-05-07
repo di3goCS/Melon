@@ -2,7 +2,7 @@
  * This file is part of the UNES Open Source Project.
  * UNES is licensed under the GNU GPLv3.
  *
- * Copyright (c) 2019.  João Paulo Sena <joaopaulo761@gmail.com>
+ * Copyright (c) 2020. João Paulo Sena <joaopaulo761@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -31,32 +31,49 @@ import com.forcetower.uefs.AppExecutors
 import com.forcetower.uefs.R
 import com.forcetower.uefs.core.constants.Constants
 import com.forcetower.uefs.core.model.service.AchDistance
+import com.forcetower.uefs.core.model.service.Achievement
 import com.forcetower.uefs.core.model.unes.ClassLocation
-import com.forcetower.uefs.core.model.unes.Profile
 import com.forcetower.uefs.core.model.unes.Semester
 import com.forcetower.uefs.core.storage.database.UDatabase
-import com.forcetower.uefs.core.util.truncate
+import com.forcetower.uefs.core.storage.network.UService
 import com.forcetower.uefs.feature.shared.extensions.generateCalendarFromHour
 import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.firestore.CollectionReference
-import timber.log.Timber
 import java.util.Calendar
+import java.util.Locale
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
-import javax.inject.Named
 import kotlin.collections.set
 
 class AdventureRepository @Inject constructor(
     private val database: UDatabase,
     private val executors: AppExecutors,
-    @Named(Profile.COLLECTION) private val collection: CollectionReference,
     private val auth: FirebaseAuth,
     private val preferences: SharedPreferences,
-    private val locations: AchLocationsRepository
+    private val locations: AchLocationsRepository,
+    private val service: UService
 ) {
 
     @AnyThread
-    fun matchesAnyAchievement(location: Location): List<AchDistance> {
+    fun checkServerAchievements(): LiveData<List<Achievement>> {
+        val data = MutableLiveData<List<Achievement>>()
+        executors.networkIO().execute {
+            try {
+                val response = service.getServerAchievements().execute()
+                if (response.isSuccessful) {
+                    val value = response.body()?.data ?: emptyList()
+                    data.postValue(value)
+                } else {
+                    data.postValue(emptyList())
+                }
+            } catch (error: Throwable) {
+                data.postValue(emptyList())
+            }
+        }
+        return data
+    }
+
+    @AnyThread
+    fun matchesAnyAchievement(location: Location?): List<AchDistance> {
         return locations.onReceiveLocation(location)
     }
 
@@ -111,9 +128,6 @@ class AdventureRepository @Inject constructor(
         val profile = database.profileDao().selectMeDirect()
         val score = profile?.score ?: profile?.calcScore ?: -1.0
 
-        var accumulatedMean = 0.0
-        var accumulatedHours = 0
-
         if (semesters.size > 5 && score >= 7)
             data[R.string.achievement_sobrevivente] = -1
 
@@ -122,7 +136,12 @@ class AdventureRepository @Inject constructor(
         if (semesters.size > 1) {
             data[R.string.achievement_pseudoveterano] = -1
 
-            val sorted = semesters.sortedBy { it.sagresId }.subList(0, semesters.size - 1)
+            val sorted = if (semesters.all { it.start != null }) {
+                semesters.sortedBy { it.start }
+            } else {
+                semesters.sortedBy { it.sagresId }
+            }.subList(0, semesters.size - 1)
+
             var noFinalCount = 0
             var introduction = 0
 
@@ -149,12 +168,7 @@ class AdventureRepository @Inject constructor(
                 var valid = false
                 classes.forEach { clazz ->
                     val points = clazz.clazz.finalScore ?: 0.0
-                    val credits = clazz.discipline().credits
-
-                    if (points >= 0) {
-                        accumulatedMean += points * credits
-                        accumulatedHours += credits
-                    }
+                    val credits = clazz.discipline.credits
 
                     if (points < 7 && points >= 0) final = true
                     if (points == 10.0) data[R.string.achievement_mdia_10] = -1
@@ -163,7 +177,7 @@ class AdventureRepository @Inject constructor(
                     if (points in 9.5..9.9) data[R.string.achievement_to_perto_mas_to_longe] = -1
                     if (points < 8) mechanics = false
 
-                    val teacher = Constants.HARD_DISCIPLINES[clazz.discipline().code.toUpperCase()]
+                    val teacher = Constants.HARD_DISCIPLINES[clazz.discipline.code.toUpperCase(Locale.getDefault())]
                     if (teacher != null && points >= 5) {
                         if (teacher == "__ANY__") {
                             data[R.string.achievement_vale_das_sombras] = -1
@@ -201,7 +215,7 @@ class AdventureRepository @Inject constructor(
                     if (absences.isEmpty()) data[R.string.achievement_eu_estou_sempre_l] = -1
                     if (clazz.clazz.missedClasses >= credits / 4) data[R.string.achievement_nunca_nem_vi] = -1
 
-                    val name = clazz.discipline().name
+                    val name = clazz.discipline.name
                     if (name.matches("(?i)(.*)introdu([cç])([aã])o(.*)".toRegex())) {
                         introduction++
                     } else if (name.matches("(?i)(.*)int(r)?\\.(.*)".toRegex())) {
@@ -231,18 +245,18 @@ class AdventureRepository @Inject constructor(
         }
 
         // Takes only the current semester
-        val current = semesters.maxBy { it.sagresId }
+        val current = if (semesters.all { it.start != null }) {
+            semesters.maxByOrNull { it.start!! }
+        } else {
+            semesters.maxByOrNull { it.sagresId }
+        }
+
         if (current != null) {
             var hours = 0
             val classes = database.classDao().getClassesWithGradesFromSemesterDirect(current.uid)
             classes.forEach { clazz ->
                 val points = clazz.clazz.finalScore ?: -1.0
-                val credits = clazz.discipline().credits
-
-                if (points >= 0) {
-                    accumulatedMean += points * credits
-                    accumulatedHours += credits
-                }
+                val credits = clazz.discipline.credits
 
                 hours += credits
 
@@ -273,12 +287,6 @@ class AdventureRepository @Inject constructor(
 
             if (hours >= 480) data[R.string.achievement_me_empresta_o_seu_viratempo] = -1
             else if (hours <= 275) data[R.string.achievement_engatinhando] = -1
-        }
-
-        if (accumulatedHours != 0) {
-            val calcScore = (accumulatedMean / accumulatedHours).truncate()
-            Timber.d("Score calculated is: $calcScore")
-            database.profileDao().updateCalculatedScore(calcScore)
         }
     }
 

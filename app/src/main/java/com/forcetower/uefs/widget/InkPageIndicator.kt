@@ -2,7 +2,7 @@
  * This file is part of the UNES Open Source Project.
  * UNES is licensed under the GNU GPLv3.
  *
- * Copyright (c) 2019.  João Paulo Sena <joaopaulo761@gmail.com>
+ * Copyright (c) 2020. João Paulo Sena <joaopaulo761@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -31,13 +31,15 @@ import android.graphics.Paint
 import android.graphics.Path
 import android.graphics.RectF
 import android.util.AttributeSet
-import android.util.Log
 import android.view.View
 import android.view.animation.Interpolator
 import androidx.viewpager.widget.ViewPager
+import com.forcetower.core.utils.AnimUtils
 import com.forcetower.uefs.R
-import com.forcetower.uefs.core.util.AnimUtils
 import java.util.Arrays
+import kotlin.math.abs
+import kotlin.math.max
+import kotlin.math.min
 
 class InkPageIndicator @JvmOverloads constructor(
     context: Context,
@@ -124,21 +126,35 @@ class InkPageIndicator @JvmOverloads constructor(
 
         // Load attributes
         val a = getContext().obtainStyledAttributes(
-                attrs, R.styleable.InkPageIndicator, defStyle, 0)
+            attrs,
+            R.styleable.InkPageIndicator,
+            defStyle,
+            0
+        )
 
-        dotDiameter = a.getDimensionPixelSize(R.styleable.InkPageIndicator_dotDiameter,
-                DEFAULT_DOT_SIZE * density)
+        dotDiameter = a.getDimensionPixelSize(
+            R.styleable.InkPageIndicator_dotDiameter,
+            DEFAULT_DOT_SIZE * density
+        )
         dotRadius = (dotDiameter / 2).toFloat()
         halfDotRadius = dotRadius / 2
-        gap = a.getDimensionPixelSize(R.styleable.InkPageIndicator_dotGap,
-                DEFAULT_GAP * density)
-        animDuration = a.getInteger(R.styleable.InkPageIndicator_animationDuration,
-                DEFAULT_ANIM_DURATION).toLong()
+        gap = a.getDimensionPixelSize(
+            R.styleable.InkPageIndicator_dotGap,
+            DEFAULT_GAP * density
+        )
+        animDuration = a.getInteger(
+            R.styleable.InkPageIndicator_animationDuration,
+            DEFAULT_ANIM_DURATION
+        ).toLong()
         animHalfDuration = animDuration / 2
-        unselectedColour = a.getColor(R.styleable.InkPageIndicator_pageIndicatorColor,
-                DEFAULT_UNSELECTED_COLOUR)
-        selectedColour = a.getColor(R.styleable.InkPageIndicator_currentPageIndicatorColor,
-                DEFAULT_SELECTED_COLOUR)
+        unselectedColour = a.getColor(
+            R.styleable.InkPageIndicator_pageIndicatorColor,
+            DEFAULT_UNSELECTED_COLOUR
+        )
+        selectedColour = a.getColor(
+            R.styleable.InkPageIndicator_currentPageIndicatorColor,
+            DEFAULT_SELECTED_COLOUR
+        )
 
         a.recycle()
 
@@ -162,11 +178,13 @@ class InkPageIndicator @JvmOverloads constructor(
         this.viewPager = viewPager
         viewPager.addOnPageChangeListener(this)
         setPageCount(viewPager.adapter!!.count)
-        viewPager.adapter!!.registerDataSetObserver(object : DataSetObserver() {
-            override fun onChanged() {
-                setPageCount(this@InkPageIndicator.viewPager!!.adapter!!.count)
+        viewPager.adapter!!.registerDataSetObserver(
+            object : DataSetObserver() {
+                override fun onChanged() {
+                    setPageCount(this@InkPageIndicator.viewPager!!.adapter!!.count)
+                }
             }
-        })
+        )
         setCurrentPageImmediate()
     }
 
@@ -195,7 +213,7 @@ class InkPageIndicator @JvmOverloads constructor(
                 // if user scrolls completely to next page then the position param updates to that
                 // new page but we're not ready to switch our 'current' page yet so adjust for that
                 if (fraction == 1f) {
-                    leftDotPosition = Math.min(currentPosition, position)
+                    leftDotPosition = min(currentPosition, position)
                 }
             }
             setJoiningFraction(leftDotPosition, fraction)
@@ -244,10 +262,10 @@ class InkPageIndicator @JvmOverloads constructor(
     }
 
     private fun setCurrentPageImmediate() {
-        if (viewPager != null) {
-            currentPage = viewPager!!.currentItem
+        currentPage = if (viewPager != null) {
+            viewPager!!.currentItem
         } else {
-            currentPage = 0
+            0
         }
         if (dotCenterX != null) {
             if (currentPage < dotCenterX!!.size)
@@ -269,19 +287,19 @@ class InkPageIndicator @JvmOverloads constructor(
 
         val desiredHeight = desiredHeight
         val height: Int
-        height = when (View.MeasureSpec.getMode(heightMeasureSpec)) {
-            View.MeasureSpec.EXACTLY -> View.MeasureSpec.getSize(heightMeasureSpec)
-            View.MeasureSpec.AT_MOST -> Math.min(desiredHeight, View.MeasureSpec.getSize(heightMeasureSpec))
-            View.MeasureSpec.UNSPECIFIED -> desiredHeight
+        height = when (MeasureSpec.getMode(heightMeasureSpec)) {
+            MeasureSpec.EXACTLY -> MeasureSpec.getSize(heightMeasureSpec)
+            MeasureSpec.AT_MOST -> min(desiredHeight, MeasureSpec.getSize(heightMeasureSpec))
+            MeasureSpec.UNSPECIFIED -> desiredHeight
             else -> desiredHeight
         }
 
         val desiredWidth = desiredWidth
         val width: Int
-        width = when (View.MeasureSpec.getMode(widthMeasureSpec)) {
-            View.MeasureSpec.EXACTLY -> View.MeasureSpec.getSize(widthMeasureSpec)
-            View.MeasureSpec.AT_MOST -> Math.min(desiredWidth, View.MeasureSpec.getSize(widthMeasureSpec))
-            View.MeasureSpec.UNSPECIFIED -> desiredWidth
+        width = when (MeasureSpec.getMode(widthMeasureSpec)) {
+            MeasureSpec.EXACTLY -> MeasureSpec.getSize(widthMeasureSpec)
+            MeasureSpec.AT_MOST -> min(desiredWidth, MeasureSpec.getSize(widthMeasureSpec))
+            MeasureSpec.UNSPECIFIED -> desiredWidth
             else -> desiredWidth
         }
         setMeasuredDimension(width, height)
@@ -309,11 +327,16 @@ class InkPageIndicator @JvmOverloads constructor(
         // draw any settled, revealing or joining dots
         for (page in 0 until pageCount) {
             val nextXIndex = if (page == pageCount - 1) page else page + 1
-            combinedUnselectedPath.op(getUnselectedPath(page,
+            combinedUnselectedPath.op(
+                getUnselectedPath(
+                    page,
                     dotCenterX!![page],
                     dotCenterX!![nextXIndex],
                     if (page == pageCount - 1) INVALID_FRACTION else joiningFractions!![page],
-                    dotRevealFractions!![page]), Path.Op.UNION)
+                    dotRevealFractions!![page]
+                ),
+                Path.Op.UNION
+            )
         }
         // draw any retreating joins
         if (retreatingJoinX1 != INVALID_FRACTION) {
@@ -354,15 +377,17 @@ class InkPageIndicator @JvmOverloads constructor(
         unselectedDotPath.rewind()
 
         if ((joiningFraction == 0f || joiningFraction == INVALID_FRACTION) &&
-                dotRevealFraction == 0f &&
-                !(page == currentPage && selectedDotInPosition == true)) {
+            dotRevealFraction == 0f &&
+            !(page == currentPage && selectedDotInPosition)
+        ) {
 
             // case #1 – At rest
             unselectedDotPath.addCircle(dotCenterX!![page], dotCenterY, dotRadius, Path.Direction.CW)
         }
 
         if (joiningFraction > 0f && joiningFraction <= 0.5f &&
-                retreatingJoinX1 == INVALID_FRACTION) {
+            retreatingJoinX1 == INVALID_FRACTION
+        ) {
 
             // case #2 – Joining neighbour, still separate
 
@@ -383,9 +408,14 @@ class InkPageIndicator @JvmOverloads constructor(
             controlY1 = dotTopY
             controlX2 = endX1
             controlY2 = endY1 - halfDotRadius
-            unselectedDotLeftPath.cubicTo(controlX1, controlY1,
-                    controlX2, controlY2,
-                    endX1, endY1)
+            unselectedDotLeftPath.cubicTo(
+                controlX1,
+                controlY1,
+                controlX2,
+                controlY2,
+                endX1,
+                endY1
+            )
 
             // cubic back to the bottom center
             endX2 = centerX
@@ -394,9 +424,14 @@ class InkPageIndicator @JvmOverloads constructor(
             controlY1 = endY1 + halfDotRadius
             controlX2 = centerX + halfDotRadius
             controlY2 = dotBottomY
-            unselectedDotLeftPath.cubicTo(controlX1, controlY1,
-                    controlX2, controlY2,
-                    endX2, endY2)
+            unselectedDotLeftPath.cubicTo(
+                controlX1,
+                controlY1,
+                controlX2,
+                controlY2,
+                endX2,
+                endY2
+            )
 
             unselectedDotPath.op(unselectedDotLeftPath, Path.Op.UNION)
 
@@ -417,9 +452,14 @@ class InkPageIndicator @JvmOverloads constructor(
             controlY1 = dotTopY
             controlX2 = endX1
             controlY2 = endY1 - halfDotRadius
-            unselectedDotRightPath.cubicTo(controlX1, controlY1,
-                    controlX2, controlY2,
-                    endX1, endY1)
+            unselectedDotRightPath.cubicTo(
+                controlX1,
+                controlY1,
+                controlX2,
+                controlY2,
+                endX1,
+                endY1
+            )
 
             // cubic back to the bottom center
             endX2 = nextCenterX
@@ -428,14 +468,20 @@ class InkPageIndicator @JvmOverloads constructor(
             controlY1 = endY1 + halfDotRadius
             controlX2 = endX2 - halfDotRadius
             controlY2 = dotBottomY
-            unselectedDotRightPath.cubicTo(controlX1, controlY1,
-                    controlX2, controlY2,
-                    endX2, endY2)
+            unselectedDotRightPath.cubicTo(
+                controlX1,
+                controlY1,
+                controlX2,
+                controlY2,
+                endX2,
+                endY2
+            )
             unselectedDotPath.op(unselectedDotRightPath, Path.Op.UNION)
         }
 
         if (joiningFraction > 0.5f && joiningFraction < 1f &&
-                retreatingJoinX1 == INVALID_FRACTION) {
+            retreatingJoinX1 == INVALID_FRACTION
+        ) {
 
             // case #3 – Joining neighbour, combined curved
 
@@ -456,9 +502,14 @@ class InkPageIndicator @JvmOverloads constructor(
             controlY1 = dotTopY
             controlX2 = endX1 - (1 - adjustedFraction) * dotRadius
             controlY2 = endY1
-            unselectedDotPath.cubicTo(controlX1, controlY1,
-                    controlX2, controlY2,
-                    endX1, endY1)
+            unselectedDotPath.cubicTo(
+                controlX1,
+                controlY1,
+                controlX2,
+                controlY2,
+                endX1,
+                endY1
+            )
 
             // bezier to the top right of the join
             endX2 = nextCenterX
@@ -467,9 +518,14 @@ class InkPageIndicator @JvmOverloads constructor(
             controlY1 = endY1
             controlX2 = endX1 + adjustedFraction * dotRadius
             controlY2 = dotTopY
-            unselectedDotPath.cubicTo(controlX1, controlY1,
-                    controlX2, controlY2,
-                    endX2, endY2)
+            unselectedDotPath.cubicTo(
+                controlX1,
+                controlY1,
+                controlX2,
+                controlY2,
+                endX2,
+                endY2
+            )
 
             // semi-circle to the bottom right
             rectF.set(nextCenterX - dotRadius, dotTopY, nextCenterX + dotRadius, dotBottomY)
@@ -482,9 +538,14 @@ class InkPageIndicator @JvmOverloads constructor(
             controlY1 = dotBottomY
             controlX2 = endX1 + (1 - adjustedFraction) * dotRadius
             controlY2 = endY1
-            unselectedDotPath.cubicTo(controlX1, controlY1,
-                    controlX2, controlY2,
-                    endX1, endY1)
+            unselectedDotPath.cubicTo(
+                controlX1,
+                controlY1,
+                controlX2,
+                controlY2,
+                endX1,
+                endY1
+            )
 
             // bezier back to the start point in the bottom left
             endX2 = centerX
@@ -493,9 +554,14 @@ class InkPageIndicator @JvmOverloads constructor(
             controlY1 = endY1
             controlX2 = endX1 - adjustedFraction * dotRadius
             controlY2 = endY2
-            unselectedDotPath.cubicTo(controlX1, controlY1,
-                    controlX2, controlY2,
-                    endX2, endY2)
+            unselectedDotPath.cubicTo(
+                controlX1,
+                controlY1,
+                controlX2,
+                controlY2,
+                endX2,
+                endY2
+            )
         }
         if (joiningFraction == 1f && retreatingJoinX1 == INVALID_FRACTION) {
 
@@ -513,8 +579,12 @@ class InkPageIndicator @JvmOverloads constructor(
         if (dotRevealFraction > MINIMAL_REVEAL) {
 
             // case #6 – previously hidden dot revealing
-            unselectedDotPath.addCircle(centerX, dotCenterY, dotRevealFraction * dotRadius,
-                    Path.Direction.CW)
+            unselectedDotPath.addCircle(
+                centerX,
+                dotCenterY,
+                dotRevealFraction * dotRadius,
+                Path.Direction.CW
+            )
         }
 
         return unselectedDotPath
@@ -530,7 +600,7 @@ class InkPageIndicator @JvmOverloads constructor(
         pageChanging = true
         previousPage = currentPage
         currentPage = now
-        val steps = Math.abs(now - previousPage)
+        val steps = abs(now - previousPage)
 
         if (steps > 1) {
             if (now > previousPage) {
@@ -563,36 +633,44 @@ class InkPageIndicator @JvmOverloads constructor(
         val moveSelected = ValueAnimator.ofFloat(selectedDotX, moveTo)
 
         // also set up a pending retreat anim – this starts when the move is 75% complete
-        retreatAnimation = PendingRetreatAnimator(was, now, steps,
-                if (now > was)
-                    RightwardStartPredicate(moveTo - (moveTo - selectedDotX) * 0.25f)
-                else
-                    LeftwardStartPredicate(moveTo + (selectedDotX - moveTo) * 0.25f))
-        retreatAnimation!!.addListener(object : AnimatorListenerAdapter() {
-            override fun onAnimationEnd(animation: Animator) {
-                resetState()
-                pageChanging = false
+        retreatAnimation = PendingRetreatAnimator(
+            was,
+            now,
+            steps,
+            if (now > was)
+                RightwardStartPredicate(moveTo - (moveTo - selectedDotX) * 0.25f)
+            else
+                LeftwardStartPredicate(moveTo + (selectedDotX - moveTo) * 0.25f)
+        )
+        retreatAnimation!!.addListener(
+            object : AnimatorListenerAdapter() {
+                override fun onAnimationEnd(animation: Animator) {
+                    resetState()
+                    pageChanging = false
+                }
             }
-        })
+        )
         moveSelected.addUpdateListener { valueAnimator ->
             // todo avoid autoboxing
             selectedDotX = valueAnimator.animatedValue as Float
             retreatAnimation!!.startIfNecessary(selectedDotX)
             postInvalidateOnAnimation()
         }
-        moveSelected.addListener(object : AnimatorListenerAdapter() {
-            override fun onAnimationStart(animation: Animator) {
-                // set a flag so that we continue to draw the unselected dot in the target position
-                // until the selected dot has finished moving into place
-                selectedDotInPosition = false
-            }
+        moveSelected.addListener(
+            object : AnimatorListenerAdapter() {
+                override fun onAnimationStart(animation: Animator) {
+// set a flag so that we continue to draw the unselected dot in the target position
+// until the selected dot has finished moving into place
+                    selectedDotInPosition = false
+                }
 
-            override fun onAnimationEnd(animation: Animator) {
-                // set a flag when anim finishes so that we don't draw both selected & unselected
-                // page dots
-                selectedDotInPosition = true
+                override fun onAnimationEnd(animation: Animator) {
+// set a flag when anim finishes so that we don't draw both selected & unselected
+// page dots
+                    selectedDotInPosition = true
+                }
             }
-        })
+        )
         // slightly delay the start to give the joins a chance to run
         // unless dot isn't in position yet – then don't delay!
         moveSelected.startDelay = if (selectedDotInPosition) animDuration / 4L else 0L
@@ -603,11 +681,6 @@ class InkPageIndicator @JvmOverloads constructor(
 
     private fun setJoiningFraction(leftDot: Int, fraction: Float) {
         if (leftDot < joiningFractions!!.size) {
-
-            if (leftDot == 1) {
-                Log.d("PageIndicator", "dot 1 fraction:\t$fraction")
-            }
-
             joiningFractions!![leftDot] = fraction
             postInvalidateOnAnimation()
         }
@@ -632,7 +705,7 @@ class InkPageIndicator @JvmOverloads constructor(
     /**
      * A [ValueAnimator] that starts once a given predicate returns true.
      */
-    abstract inner class PendingStartAnimator(protected var predicate: StartPredicate) : ValueAnimator() {
+    abstract inner class PendingStartAnimator(private var predicate: StartPredicate) : ValueAnimator() {
 
         private var hasStarted: Boolean = false
 
@@ -663,7 +736,7 @@ class InkPageIndicator @JvmOverloads constructor(
             // travelling in.  Also look at the current selected dot position, i.e. we're moving on
             // before a prior anim has finished.
             val initialX1 = if (now > was)
-                Math.min(dotCenterX!![was], selectedDotX) - dotRadius
+                min(dotCenterX!![was], selectedDotX) - dotRadius
             else
                 dotCenterX!![now] - dotRadius
             val finalX1 = if (now > was)
@@ -673,7 +746,7 @@ class InkPageIndicator @JvmOverloads constructor(
             val initialX2 = if (now > was)
                 dotCenterX!![now] + dotRadius
             else
-                Math.max(dotCenterX!![was], selectedDotX) + dotRadius
+                max(dotCenterX!![was], selectedDotX) + dotRadius
             val finalX2 = if (now > was)
                 dotCenterX!![now] + dotRadius
             else
@@ -688,8 +761,10 @@ class InkPageIndicator @JvmOverloads constructor(
                 setFloatValues(initialX1, finalX1)
                 // create the reveal animations that will run when the retreat passes them
                 for (i in 0 until steps) {
-                    revealAnimations!![i] = PendingRevealAnimator(was + i,
-                            RightwardStartPredicate(dotCenterX!![was + i]))
+                    revealAnimations!![i] = PendingRevealAnimator(
+                        was + i,
+                        RightwardStartPredicate(dotCenterX!![was + i])
+                    )
                     dotsToHide[i] = was + i
                 }
                 addUpdateListener { valueAnimator ->
@@ -705,8 +780,10 @@ class InkPageIndicator @JvmOverloads constructor(
                 setFloatValues(initialX2, finalX2)
                 // create the reveal animations that will run when the retreat passes them
                 for (i in 0 until steps) {
-                    revealAnimations!![i] = PendingRevealAnimator(was - i,
-                            LeftwardStartPredicate(dotCenterX!![was - i]))
+                    revealAnimations!![i] = PendingRevealAnimator(
+                        was - i,
+                        LeftwardStartPredicate(dotCenterX!![was - i])
+                    )
                     dotsToHide[i] = was - i
                 }
                 addUpdateListener { valueAnimator ->
@@ -720,25 +797,27 @@ class InkPageIndicator @JvmOverloads constructor(
                 }
             }
 
-            addListener(object : AnimatorListenerAdapter() {
-                override fun onAnimationStart(animation: Animator) {
-                    cancelJoiningAnimations()
-                    clearJoiningFractions()
-                    // we need to set this so that the dots are hidden until the reveal anim runs
-                    for (dot in dotsToHide) {
-                        setDotRevealFraction(dot, MINIMAL_REVEAL)
+            addListener(
+                object : AnimatorListenerAdapter() {
+                    override fun onAnimationStart(animation: Animator) {
+                        cancelJoiningAnimations()
+                        clearJoiningFractions()
+                        // we need to set this so that the dots are hidden until the reveal anim runs
+                        for (dot in dotsToHide) {
+                            setDotRevealFraction(dot, MINIMAL_REVEAL)
+                        }
+                        retreatingJoinX1 = initialX1
+                        retreatingJoinX2 = initialX2
+                        postInvalidateOnAnimation()
                     }
-                    retreatingJoinX1 = initialX1
-                    retreatingJoinX2 = initialX2
-                    postInvalidateOnAnimation()
-                }
 
-                override fun onAnimationEnd(animation: Animator) {
-                    retreatingJoinX1 = INVALID_FRACTION
-                    retreatingJoinX2 = INVALID_FRACTION
-                    postInvalidateOnAnimation()
+                    override fun onAnimationEnd(animation: Animator) {
+                        retreatingJoinX1 = INVALID_FRACTION
+                        retreatingJoinX2 = INVALID_FRACTION
+                        postInvalidateOnAnimation()
+                    }
                 }
-            })
+            )
         }
     }
 
@@ -753,15 +832,19 @@ class InkPageIndicator @JvmOverloads constructor(
             interpolator = interpolator
             addUpdateListener { valueAnimator ->
                 // todo avoid autoboxing
-                setDotRevealFraction(this@PendingRevealAnimator.dot,
-                        valueAnimator.animatedValue as Float)
+                setDotRevealFraction(
+                    this@PendingRevealAnimator.dot,
+                    valueAnimator.animatedValue as Float
+                )
             }
-            addListener(object : AnimatorListenerAdapter() {
-                override fun onAnimationEnd(animation: Animator) {
-                    setDotRevealFraction(this@PendingRevealAnimator.dot, 0f)
-                    postInvalidateOnAnimation()
+            addListener(
+                object : AnimatorListenerAdapter() {
+                    override fun onAnimationEnd(animation: Animator) {
+                        setDotRevealFraction(this@PendingRevealAnimator.dot, 0f)
+                        postInvalidateOnAnimation()
+                    }
                 }
-            })
+            )
         }
     }
 

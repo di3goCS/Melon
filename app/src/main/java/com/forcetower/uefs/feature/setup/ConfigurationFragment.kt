@@ -2,7 +2,7 @@
  * This file is part of the UNES Open Source Project.
  * UNES is licensed under the GNU GPLv3.
  *
- * Copyright (c) 2019.  João Paulo Sena <joaopaulo761@gmail.com>
+ * Copyright (c) 2020. João Paulo Sena <joaopaulo761@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -25,28 +25,26 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import androidx.fragment.app.activityViewModels
 import androidx.navigation.fragment.findNavController
 import com.forcetower.uefs.R
-import com.forcetower.uefs.core.injection.Injectable
 import com.forcetower.uefs.core.model.service.SyncFrequency
-import com.forcetower.uefs.core.vm.UViewModelFactory
 import com.forcetower.uefs.databinding.FragmentSetupConfigurationBinding
 import com.forcetower.uefs.feature.shared.UFragment
-import com.forcetower.uefs.feature.shared.extensions.provideActivityViewModel
 import com.google.firebase.auth.FirebaseAuth
+import com.judemanutd.autostarter.AutoStartPermissionHelper
+import dagger.hilt.android.AndroidEntryPoint
+import java.util.Locale
 import javax.inject.Inject
 
-class ConfigurationFragment : UFragment(), Injectable {
-    @Inject
-    lateinit var factory: UViewModelFactory
-    @Inject
-    lateinit var firebaseAuth: FirebaseAuth
+@AndroidEntryPoint
+class ConfigurationFragment : UFragment() {
+    @Inject lateinit var firebaseAuth: FirebaseAuth
 
     private lateinit var binding: FragmentSetupConfigurationBinding
-    private lateinit var viewModel: SetupViewModel
+    private val viewModel: SetupViewModel by activityViewModels()
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View? {
-        viewModel = provideActivityViewModel(factory)
         return FragmentSetupConfigurationBinding.inflate(inflater, container, false).also {
             binding = it
         }.root
@@ -56,12 +54,14 @@ class ConfigurationFragment : UFragment(), Injectable {
         binding.textSetupSync.setText(viewModel.getSelectedFrequency().name)
         binding.textSetupSync.setOnClickListener {
             val dialog = SelectSyncDialog()
-            dialog.setCallback(object : FrequencySelectionCallback {
-                override fun onSelected(frequency: SyncFrequency) {
-                    viewModel.setSelectedFrequency(frequency)
-                    binding.textSetupSync.setText(frequency.name)
+            dialog.setCallback(
+                object : FrequencySelectionCallback {
+                    override fun onSelected(frequency: SyncFrequency) {
+                        viewModel.setSelectedFrequency(frequency)
+                        binding.textSetupSync.setText(frequency.name)
+                    }
                 }
-            })
+            )
             dialog.show(childFragmentManager, "dialog_sync")
         }
 
@@ -72,19 +72,16 @@ class ConfigurationFragment : UFragment(), Injectable {
     }
 
     private fun decideNext() {
-        val manufacturer = Build.MANUFACTURER.toLowerCase()
-
-        when (manufacturer) {
-            "xiaomi" -> findNavController().navigate(R.id.action_configuration_to_special)
-            "oppo" -> findNavController().navigate(R.id.action_configuration_to_special)
-            "vivo" -> findNavController().navigate(R.id.action_configuration_to_special)
-            "lenovo" -> findNavController().navigate(R.id.action_configuration_to_special)
-            "honor" -> findNavController().navigate(R.id.action_configuration_to_special)
-            "huawei" -> findNavController().navigate(R.id.action_configuration_to_special)
-            else -> {
-                findNavController().navigate(R.id.action_configuration_to_home)
-                requireActivity().finishAfterTransition()
-            }
+        val autoStart = AutoStartPermissionHelper.getInstance().isAutoStartPermissionAvailable(requireContext())
+        val brands = when (Build.BRAND.toLowerCase(Locale.getDefault())) {
+            "samsung" -> true
+            else -> false
+        }
+        if (autoStart || brands) {
+            findNavController().navigate(R.id.action_configuration_to_special)
+        } else {
+            findNavController().navigate(R.id.action_configuration_to_home)
+            requireActivity().finishAfterTransition()
         }
     }
 

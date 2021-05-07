@@ -2,7 +2,7 @@
  * This file is part of the UNES Open Source Project.
  * UNES is licensed under the GNU GPLv3.
  *
- * Copyright (c) 2019.  João Paulo Sena <joaopaulo761@gmail.com>
+ * Copyright (c) 2020. João Paulo Sena <joaopaulo761@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -27,13 +27,18 @@ import androidx.room.Insert
 import androidx.room.OnConflictStrategy.IGNORE
 import androidx.room.OnConflictStrategy.REPLACE
 import androidx.room.Query
-import com.crashlytics.android.Crashlytics
+import androidx.room.Transaction
 import com.forcetower.uefs.core.model.unes.Message
+import timber.log.Timber
+import java.util.Locale
 
 @Dao
 abstract class MessageDao {
+    @Query("DELETE FROM Message")
+    abstract suspend fun deleteAllSuspend()
 
-    fun insertIgnoring(messages: List<Message>) {
+    @Transaction
+    open fun insertIgnoring(messages: List<Message>) {
         updateOldMessages()
         for (message in messages) {
             val direct = getMessageByHashDirect(message.hashMessage)
@@ -44,10 +49,17 @@ abstract class MessageDao {
                     }
                 }
 
+                // mark message as edited?
+                if (!message.html && message.content.isNotBlank()) {
+                    updateContent(message.sagresId, message.content)
+                }
+
                 if (message.discipline != null) {
-                    if (direct.discipline.isNullOrBlank()) {
-                        updateDisciplineName(message.sagresId, message.discipline)
-                    }
+                    updateDisciplineName(message.sagresId, message.discipline)
+                }
+
+                if (message.codeDiscipline != null) {
+                    updateDisciplineCode(direct.sagresId, message.codeDiscipline)
                 }
 
                 if (message.attachmentLink != null) {
@@ -60,6 +72,18 @@ abstract class MessageDao {
 
                 if (message.html && direct.html) {
                     updateDateString(message.sagresId, message.dateString)
+                }
+
+                if (direct.html && !message.html) {
+                    Timber.d("Is this really happening?")
+                    updateTimestamp(direct.sagresId, message.timestamp)
+                    updateSenderProfile(direct.sagresId, message.senderProfile)
+                    updateHtmlParseStatus(direct.sagresId, false)
+
+                    if (message.senderName != null)
+                        updateSenderName(direct.sagresId, message.senderName)
+                    if (message.discipline != null)
+                        updateDisciplineName(direct.sagresId, message.discipline)
                 }
             }
             val resume = message.disciplineResume?.trim()
@@ -78,12 +102,12 @@ abstract class MessageDao {
     private fun updateOldMessages() {
         val messages = getAllUndefinedMessages()
         messages.forEach { message ->
-            val hash = message.content.toLowerCase().trim().hashCode().toLong()
+            val hash = message.content.toLowerCase(Locale.getDefault()).trim().hashCode().toLong()
             val existing = getMessageByHashDirect(hash)
             if (existing == null) setMessageHash(message.uid, hash)
             else {
                 deleteMessage(message.uid)
-                Crashlytics.logException(Exception("Collision of messages ${existing.senderName} and ${message.codeDiscipline}"))
+                Timber.e("Collision of messages ${existing.senderName} and ${message.codeDiscipline}")
             }
         }
     }
@@ -115,6 +139,21 @@ abstract class MessageDao {
     @Query("UPDATE Message SET attachmentName = :attachmentName WHERE sagres_id = :sagresId")
     protected abstract fun updateAttachmentName(sagresId: Long, attachmentName: String)
 
+    @Query("UPDATE Message SET code_discipline = :codeDiscipline WHERE sagres_id = :sagresId")
+    protected abstract fun updateDisciplineCode(sagresId: Long, codeDiscipline: String)
+
+    @Query("UPDATE Message SET html = :html WHERE sagres_id = :sagresId")
+    protected abstract fun updateHtmlParseStatus(sagresId: Long, html: Boolean)
+
+    @Query("UPDATE Message SET sender_profile = :senderProfile WHERE sagres_id = :sagresId")
+    protected abstract fun updateSenderProfile(sagresId: Long, senderProfile: Int)
+
+    @Query("UPDATE Message SET timestamp = :timestamp WHERE sagres_id = :sagresId")
+    protected abstract fun updateTimestamp(sagresId: Long, timestamp: Long)
+
+    @Query("UPDATE Message SET content = :content WHERE sagres_id = :sagresId")
+    protected abstract fun updateContent(sagresId: Long, content: String)
+
     @Insert(onConflict = IGNORE)
     protected abstract fun insertIgnore(messages: List<Message>)
 
@@ -126,6 +165,9 @@ abstract class MessageDao {
 
     @Query("SELECT * FROM Message ORDER BY timestamp DESC")
     abstract fun getAllMessages(): LiveData<List<Message>>
+
+    @Query("SELECT * FROM Message ORDER BY timestamp DESC LIMIT 1")
+    abstract fun getLastMessage(): LiveData<Message?>
 
     @Query("SELECT * FROM Message ORDER BY timestamp DESC")
     abstract fun getAllMessagesPaged(): DataSource.Factory<Int, Message>

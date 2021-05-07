@@ -2,7 +2,7 @@
  * This file is part of the UNES Open Source Project.
  * UNES is licensed under the GNU GPLv3.
  *
- * Copyright (c) 2019.  João Paulo Sena <joaopaulo761@gmail.com>
+ * Copyright (c) 2020. João Paulo Sena <joaopaulo761@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,70 +21,38 @@
 package com.forcetower.uefs
 
 import android.content.Intent
-import android.content.SharedPreferences
 import android.os.Bundle
+import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
-import androidx.fragment.app.Fragment
-import com.forcetower.uefs.core.vm.Destination
-import com.forcetower.uefs.core.vm.EventObserver
-import com.forcetower.uefs.core.vm.LaunchViewModel
-import com.forcetower.uefs.core.vm.UViewModelFactory
+import com.forcetower.core.lifecycle.EventObserver
 import com.forcetower.uefs.feature.home.HomeActivity
 import com.forcetower.uefs.feature.login.LoginActivity
-import com.forcetower.uefs.feature.shared.extensions.provideViewModel
-import com.forcetower.uefs.service.NotificationCreator
-import com.google.firebase.remoteconfig.FirebaseRemoteConfig
-import dagger.android.DispatchingAndroidInjector
-import dagger.android.support.HasSupportFragmentInjector
-import timber.log.Timber
-import javax.inject.Inject
+import dagger.hilt.android.AndroidEntryPoint
 
 /**
  * A atividade inicial do aplicativo, ela tem o papel de decidir qual tela mostrar
  * - Login -> caso o usuário não esteja conectado [Não existe usuário + senha no aplicativo]
  * - Home  -> caso o usuário esteja conectado
  */
-class LauncherActivity : AppCompatActivity(), HasSupportFragmentInjector {
-    @Inject
-    lateinit var fragmentInjector: DispatchingAndroidInjector<Fragment>
-    @Inject
-    lateinit var factory: UViewModelFactory
-    @Inject
-    lateinit var remoteConfig: FirebaseRemoteConfig
-    @Inject
-    lateinit var preferences: SharedPreferences
+@AndroidEntryPoint
+class LauncherActivity : AppCompatActivity() {
+    private val viewModel by viewModels<LaunchViewModel>()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        val viewModel: LaunchViewModel = provideViewModel(factory)
         if (savedInstanceState != null) return
-        createNewVersionNotification()
 
-        viewModel.direction.observe(this, EventObserver {
-            Timber.d("Once!")
-            // Esta linha não é necessária já que o EventObserver é chamado apenas uma vez
-            if (!viewModel.started) {
-                when (it) {
-                    Destination.LOGIN_ACTIVITY -> startActivity(Intent(this, LoginActivity::class.java))
-                    Destination.HOME_ACTIVITY -> startActivity(Intent(this, HomeActivity::class.java))
+        viewModel.checkNewAppVersion()
+        viewModel.findStarterDirection()
+        viewModel.direction.observe(
+            this,
+            EventObserver { destination ->
+                when (destination) {
+                    LaunchViewModel.Destination.LOGIN_ACTIVITY -> startActivity(Intent(this, LoginActivity::class.java))
+                    LaunchViewModel.Destination.HOME_ACTIVITY -> startActivity(Intent(this, HomeActivity::class.java))
                 }
-                viewModel.started = true
                 finish()
             }
-        })
+        )
     }
-
-    private fun createNewVersionNotification() {
-        val currentVersion = remoteConfig.getLong("version_current")
-        val notified = preferences.getBoolean("version_ntf_key_$currentVersion", false)
-        if (currentVersion > BuildConfig.VERSION_CODE && !notified) {
-            val notes = remoteConfig.getString("version_notes")
-            val version = remoteConfig.getString("version_name")
-            val title = getString(R.string.new_version_ntf_title_format, version)
-            NotificationCreator.showSimpleNotification(this, title, notes)
-            preferences.edit().putBoolean("version_ntf_key_$currentVersion", true).apply()
-        }
-    }
-
-    override fun supportFragmentInjector() = fragmentInjector
 }

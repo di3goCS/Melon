@@ -3,7 +3,7 @@
   ~ This file is part of the UNES Open Source Project.
   ~ UNES is licensed under the GNU GPLv3.
   ~
-  ~ Copyright (c) 2019.  João Paulo Sena <joaopaulo761@gmail.com>
+  ~ Copyright (c) 2020. João Paulo Sena <joaopaulo761@gmail.com>
   ~
   ~ This program is free software: you can redistribute it and/or modify
   ~ it under the terms of the GNU General Public License as published by
@@ -34,7 +34,7 @@
 
         <variable
             name="zone"
-            type="org.threeten.bp.ZoneId"/>
+            type="java.time.ZoneId"/>
     </data>
 
     <androidx.constraintlayout.widget.ConstraintLayout
@@ -73,7 +73,6 @@
             android:contentDescription="@string/acc_event_mark_session"
             android:checked="@{data.isStarred()}"
             android:onClick="@{() -> listener.onStarClicked(data)}"
-            android:src="@drawable/asld_star_event"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintTop_toTopOf="parent"/>
 

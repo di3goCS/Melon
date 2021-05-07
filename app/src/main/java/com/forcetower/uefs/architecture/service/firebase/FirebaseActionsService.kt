@@ -2,7 +2,7 @@
  * This file is part of the UNES Open Source Project.
  * UNES is licensed under the GNU GPLv3.
  *
- * Copyright (c) 2019.  João Paulo Sena <joaopaulo761@gmail.com>
+ * Copyright (c) 2020. João Paulo Sena <joaopaulo761@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -23,28 +23,38 @@ package com.forcetower.uefs.architecture.service.firebase
 import com.forcetower.uefs.core.storage.repository.FirebaseMessageRepository
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
-import dagger.android.AndroidInjection
+import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
 import timber.log.Timber
 import javax.inject.Inject
 
+@AndroidEntryPoint
 class FirebaseActionsService : FirebaseMessagingService() {
     @Inject
     lateinit var repository: FirebaseMessageRepository
 
-    override fun onCreate() {
-        super.onCreate()
-        AndroidInjection.inject(this)
-    }
+    private val job = SupervisorJob()
+    private val coroutineScope = CoroutineScope(job + Dispatchers.IO)
 
-    override fun onMessageReceived(message: RemoteMessage?) {
+    override fun onMessageReceived(message: RemoteMessage) {
         Timber.d("Message received: $message")
-        message ?: return
-        repository.onMessageReceived(message)
+        coroutineScope.launch {
+            repository.onMessageReceived(message)
+        }
     }
 
-    override fun onNewToken(token: String?) {
+    override fun onNewToken(token: String) {
         Timber.d("On Token received: $token")
-        token ?: return
         repository.onNewToken(token)
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        Timber.d("Service onDestroy called. Coroutines will be canceled")
+        job.cancel("Service destroyed")
     }
 }

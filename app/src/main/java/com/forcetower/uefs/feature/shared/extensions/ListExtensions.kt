@@ -2,7 +2,7 @@
  * This file is part of the UNES Open Source Project.
  * UNES is licensed under the GNU GPLv3.
  *
- * Copyright (c) 2019.  João Paulo Sena <joaopaulo761@gmail.com>
+ * Copyright (c) 2020. João Paulo Sena <joaopaulo761@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,6 +21,6 @@
 package com.forcetower.uefs.feature.shared.extensions
 
 fun <T> List<T>.positionOf(other: Any): Int {
-    for (i in 0..(size - 1)) if (get(i) == other) return i
+    for (i in 0 until size) if (get(i) == other) return i
     return -1
 }

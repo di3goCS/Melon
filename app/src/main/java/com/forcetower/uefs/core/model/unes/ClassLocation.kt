@@ -2,7 +2,7 @@
  * This file is part of the UNES Open Source Project.
  * UNES is licensed under the GNU GPLv3.
  *
- * Copyright (c) 2019.  João Paulo Sena <joaopaulo761@gmail.com>
+ * Copyright (c) 2020. João Paulo Sena <joaopaulo761@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -28,14 +28,17 @@ import androidx.room.Index
 import androidx.room.PrimaryKey
 import java.util.UUID
 
-@Entity(foreignKeys = [
-    ForeignKey(entity = ClassGroup::class, parentColumns = ["uid"], childColumns = ["group_id"], onUpdate = CASCADE, onDelete = CASCADE),
-    ForeignKey(entity = Profile::class, parentColumns = ["uid"], childColumns = ["profile_id"], onUpdate = CASCADE, onDelete = CASCADE)
-], indices = [
-    Index(value = ["group_id", "day", "starts_at", "ends_at", "profile_id"], unique = true),
-    Index(value = ["profile_id"]),
-    Index(value = ["uuid"], unique = true)
-])
+@Entity(
+    foreignKeys = [
+        ForeignKey(entity = ClassGroup::class, parentColumns = ["uid"], childColumns = ["group_id"], onUpdate = CASCADE, onDelete = CASCADE),
+        ForeignKey(entity = Profile::class, parentColumns = ["uid"], childColumns = ["profile_id"], onUpdate = CASCADE, onDelete = CASCADE)
+    ],
+    indices = [
+        Index(value = ["group_id", "day", "starts_at", "ends_at", "profile_id"], unique = true),
+        Index(value = ["profile_id"]),
+        Index(value = ["uuid"], unique = true)
+    ]
+)
 data class ClassLocation(
     @PrimaryKey(autoGenerate = true)
     val uid: Long = 0,
@@ -51,11 +54,16 @@ data class ClassLocation(
     val room: String?,
     val modulo: String?,
     val campus: String?,
-    val uuid: String = UUID.randomUUID().toString()
+    val uuid: String = UUID.randomUUID().toString(),
+    @ColumnInfo(name = "hidden_on_schedule")
+    val hiddenOnSchedule: Boolean = false,
+    val startsAtInt: Int,
+    val endsAtInt: Int,
+    val dayInt: Int
 ) : Comparable<ClassLocation> {
 
     override fun toString(): String {
-        return "${groupId}_$profileId: $day >> $startsAt .. $endsAt"
+        return "$groupId: $day >> $startsAt .. $endsAt (hidden: $hiddenOnSchedule)"
     }
 
     override fun compareTo(other: ClassLocation): Int {

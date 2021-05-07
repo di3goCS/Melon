@@ -2,7 +2,7 @@
  * This file is part of the UNES Open Source Project.
  * UNES is licensed under the GNU GPLv3.
  *
- * Copyright (c) 2019.  João Paulo Sena <joaopaulo761@gmail.com>
+ * Copyright (c) 2020. João Paulo Sena <joaopaulo761@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -27,40 +27,34 @@ import android.content.Intent.FLAG_ACTIVITY_NEW_TASK
 import android.content.SharedPreferences
 import android.content.pm.ShortcutManager
 import android.os.Bundle
-import androidx.annotation.IntRange
-import androidx.annotation.StringRes
-import androidx.constraintlayout.widget.ConstraintLayout
-import androidx.constraintlayout.widget.ConstraintSet
+import android.os.Handler
+import android.os.Looper
+import androidx.activity.viewModels
+import androidx.core.view.doOnLayout
 import androidx.databinding.DataBindingUtil
-import androidx.fragment.app.Fragment
-import androidx.lifecycle.Observer
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.lifecycleScope
 import androidx.navigation.findNavController
 import androidx.navigation.ui.NavigationUI
-import com.crashlytics.android.Crashlytics
+import com.forcetower.core.lifecycle.EventObserver
+import com.forcetower.sagres.SagresNavigator
+import com.forcetower.sagres.database.model.SagresCredential
 import com.forcetower.uefs.AppExecutors
 import com.forcetower.uefs.BuildConfig
 import com.forcetower.uefs.R
 import com.forcetower.uefs.REQUEST_IN_APP_UPDATE
 import com.forcetower.uefs.architecture.service.bigtray.BigTrayService
 import com.forcetower.uefs.core.model.unes.Access
-import com.forcetower.uefs.core.model.unes.Account
 import com.forcetower.uefs.core.util.isStudentFromUEFS
-import com.forcetower.uefs.core.vm.EventObserver
-import com.forcetower.uefs.core.vm.UViewModelFactory
 import com.forcetower.uefs.databinding.ActivityHomeBinding
 import com.forcetower.uefs.feature.adventure.AdventureViewModel
+import com.forcetower.uefs.feature.disciplines.DisciplineViewModel
 import com.forcetower.uefs.feature.login.LoginActivity
+import com.forcetower.uefs.feature.messages.MessagesDFMViewModel
 import com.forcetower.uefs.feature.shared.UGameActivity
 import com.forcetower.uefs.feature.shared.extensions.config
 import com.forcetower.uefs.feature.shared.extensions.isNougatMR1
-import com.forcetower.uefs.feature.shared.extensions.provideViewModel
 import com.forcetower.uefs.feature.shared.extensions.toShortcut
-import com.google.android.gms.ads.AdListener
-import com.google.android.gms.ads.AdRequest
-import com.google.android.gms.ads.AdSize
-import com.google.android.gms.ads.AdView
-import com.google.android.gms.ads.InterstitialAd
-import com.google.android.gms.ads.MobileAds
 import com.google.android.material.snackbar.Snackbar
 import com.google.android.play.core.appupdate.AppUpdateInfo
 import com.google.android.play.core.appupdate.AppUpdateManager
@@ -71,69 +65,49 @@ import com.google.android.play.core.install.model.ActivityResult.RESULT_IN_APP_U
 import com.google.android.play.core.install.model.AppUpdateType
 import com.google.android.play.core.install.model.InstallStatus
 import com.google.android.play.core.install.model.UpdateAvailability
+import com.google.android.play.core.ktx.launchReview
+import com.google.android.play.core.ktx.requestReview
+import com.google.android.play.core.review.ReviewManager
+import com.google.android.play.core.review.ReviewManagerFactory
 import com.google.firebase.analytics.FirebaseAnalytics
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.remoteconfig.FirebaseRemoteConfig
-import dagger.android.AndroidInjector
-import dagger.android.DispatchingAndroidInjector
-import dagger.android.support.HasSupportFragmentInjector
+import dagger.hilt.android.AndroidEntryPoint
 import timber.log.Timber
-import java.util.Calendar
 import javax.inject.Inject
 
-class HomeActivity : UGameActivity(), HasSupportFragmentInjector {
-    companion object {
-        const val EXTRA_FRAGMENT_DIRECTIONS = "extra_directions"
-        const val EXTRA_MESSAGES_SAGRES_DIRECTION = "messages.sagres"
-        const val EXTRA_BIGTRAY_DIRECTION = "home.bigtray"
-        const val EXTRA_GRADES_DIRECTION = "grades"
-        const val EXTRA_DEMAND_DIRECTION = "demand"
-        const val EXTRA_REQUEST_SERVICE_DIRECTION = "request_service"
-    }
-
-    @Inject
-    lateinit var fragmentInjector: DispatchingAndroidInjector<Fragment>
-    @Inject
-    lateinit var vmFactory: UViewModelFactory
-    @Inject
-    lateinit var firebaseAuth: FirebaseAuth
-    @Inject
-    lateinit var preferences: SharedPreferences
-    @Inject
-    lateinit var analytics: FirebaseAnalytics
-    @Inject
-    lateinit var remoteConfig: FirebaseRemoteConfig
-    @Inject
-    lateinit var executors: AppExecutors
+@AndroidEntryPoint
+class HomeActivity : UGameActivity() {
+    @Inject lateinit var firebaseAuth: FirebaseAuth
+    @Inject lateinit var preferences: SharedPreferences
+    @Inject lateinit var analytics: FirebaseAnalytics
+    @Inject lateinit var remoteConfig: FirebaseRemoteConfig
+    @Inject lateinit var executors: AppExecutors
+    private lateinit var reviewManager: ReviewManager
 
     private val updateListener = InstallStateUpdatedListener { state -> onStateUpdateChanged(state) }
-    private lateinit var viewModel: HomeViewModel
-    private lateinit var adventureViewModel: AdventureViewModel
+    private val viewModel: HomeViewModel by viewModels()
+    private val adventureViewModel: AdventureViewModel by viewModels()
+    private val dynamicDFMViewModel: MessagesDFMViewModel by viewModels()
+    private val disciplineViewModel: DisciplineViewModel by viewModels()
+
     private lateinit var binding: ActivityHomeBinding
     private lateinit var updateManager: AppUpdateManager
     private lateinit var username: String
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setupViewModel()
         binding = DataBindingUtil.setContentView(this, R.layout.activity_home)
         setupBottomNav()
         setupUserData()
 
         updateManager = AppUpdateManagerFactory.create(this)
-
-        val admobEnabled = remoteConfig.getBoolean("admob_enabled")
-        setupAds(admobEnabled)
+        reviewManager = ReviewManagerFactory.create(this)
 
         if (savedInstanceState == null) {
             onActivityStart()
             subscribeToTopics()
         }
-    }
-
-    private fun setupAds(willShowAds: Boolean = true) {
-        MobileAds.initialize(this)
-        prepareAdsForPublic(willShowAds)
     }
 
     private fun subscribeToTopics() {
@@ -144,22 +118,45 @@ class HomeActivity : UGameActivity(), HasSupportFragmentInjector {
         try {
             initShortcuts()
             verifyUpdates()
+            getReviews()
             viewModel.onSessionStarted()
-            viewModel.account.observe(this, Observer { Unit })
+            viewModel.account.observe(this, { })
+            checkServerAchievements()
+            viewModel.getAffinityQuestions()
+//            if (preferences.isStudentFromUEFS()) {
+//                val intent = Intent(this, SyncService::class.java)
+//                startService(intent)
+//            }
         } catch (t: Throwable) {}
         moveToTask()
     }
 
-    private fun verifyUpdates() {
-        val check = preferences.getInt("daily_check_updates", -1)
-        val hour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
-        if (hour >= check + 6) {
-            Timber.d("Update check postponed")
-            return
+    private fun getReviews() {
+        if (
+            remoteConfig.getBoolean("feature_flag_in_app_review") &&
+            preferences.isStudentFromUEFS() &&
+            !preferences.getBoolean("__user_in_app_review_once__", false)
+        ) {
+            Handler(Looper.getMainLooper()).postDelayed(
+                {
+                    lifecycleScope.launchWhenCreated {
+                        if (lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) {
+                            try {
+                                val request = reviewManager.requestReview()
+                                reviewManager.launchReview(this@HomeActivity, request)
+                            } catch (error: Throwable) {
+                                Timber.e(error, "on request review")
+                            }
+                            preferences.edit().putBoolean("__user_in_app_review_once__", true).apply()
+                        }
+                    }
+                },
+                2000
+            )
         }
+    }
 
-        preferences.edit().putInt("daily_check_updates", hour).apply()
-
+    private fun verifyUpdates() {
         val updateTask = updateManager.appUpdateInfo
         val required = remoteConfig.getLong("version_disable")
         updateTask.addOnSuccessListener {
@@ -179,6 +176,8 @@ class HomeActivity : UGameActivity(), HasSupportFragmentInjector {
     }
 
     private fun requestUpdate(@AppUpdateType type: Int, info: AppUpdateInfo) {
+        viewModel.updateType = type
+        updateManager.registerListener(updateListener)
         updateManager.startUpdateFlowForResult(info, type, this, REQUEST_IN_APP_UPDATE)
     }
 
@@ -187,28 +186,13 @@ class HomeActivity : UGameActivity(), HasSupportFragmentInjector {
         viewModel.onUserInteraction()
     }
 
-    override fun onResume() {
-        super.onResume()
-        viewModel.onUserInteraction()
-        updateManager.appUpdateInfo.addOnSuccessListener {
-            if (it.updateAvailability() == UpdateAvailability.DEVELOPER_TRIGGERED_UPDATE_IN_PROGRESS) {
-                updateManager.startUpdateFlowForResult(it, AppUpdateType.IMMEDIATE, this, REQUEST_IN_APP_UPDATE)
-            }
-        }
-    }
-
     override fun onStart() {
         super.onStart()
-        verifyDarkTheme()
         lightWeightCalcScore()
     }
 
     private fun lightWeightCalcScore() {
         viewModel.lightWeightCalcScore()
-    }
-
-    private fun verifyDarkTheme() {
-        viewModel.verifyDarkTheme().observe(this, Observer { Unit })
     }
 
     private fun moveToTask() {
@@ -228,7 +212,9 @@ class HomeActivity : UGameActivity(), HasSupportFragmentInjector {
         }
 
         direction ?: return
-        findNavController(R.id.home_nav_host).navigate(direction, intent.extras)
+        binding.root.doOnLayout {
+            findNavController(R.id.home_nav_host).navigate(direction, intent.extras)
+        }
     }
 
     private fun initShortcuts() {
@@ -255,22 +241,37 @@ class HomeActivity : UGameActivity(), HasSupportFragmentInjector {
     }
 
     private fun setupBottomNav() {
-        NavigationUI.setupWithNavController(binding.bottomNavigation, findNavController(R.id.home_nav_host))
-    }
-
-    private fun setupViewModel() {
-        viewModel = provideViewModel(vmFactory)
-        adventureViewModel = provideViewModel(vmFactory)
+        binding.root.doOnLayout {
+            NavigationUI.setupWithNavController(binding.bottomNavigation, findNavController(R.id.home_nav_host))
+        }
     }
 
     private fun setupUserData() {
-        viewModel.access.observe(this, Observer { onAccessUpdate(it) })
+        viewModel.access.observe(this, { onAccessUpdate(it) })
         viewModel.snackbarMessage.observe(this, EventObserver { showSnack(it) })
-        viewModel.sendToken().observe(this, Observer { Unit })
+        dynamicDFMViewModel.snackbarMessage.observe(this, EventObserver { showSnack(it) })
+        viewModel.sendToken().observe(this, {})
         if (preferences.isStudentFromUEFS()) {
+            // Update and unlock achievements for participating in a class with the creator
             viewModel.connectToServiceIfNeeded()
-            viewModel.onSyncSessions()
+//            viewModel.goodCookies()
+            disciplineViewModel.prepareAndSendStats()
+            viewModel.getMeProfile()
         }
+        viewModel.scheduleHideCount.observe(
+            this,
+            {
+                Timber.d("Schedule hidden stuff: $it")
+                analytics.setUserProperty("using_schedule_hide", "${it > 0}")
+                analytics.setUserProperty("using_schedule_hide_cnt", "$it")
+            }
+        )
+        viewModel.onMoveToSchedule.observe(
+            this,
+            EventObserver {
+                binding.bottomNavigation.selectedItemId = R.id.schedule
+            }
+        )
     }
 
     private fun onAccessUpdate(access: Access?) {
@@ -285,15 +286,19 @@ class HomeActivity : UGameActivity(), HasSupportFragmentInjector {
         } else {
             username = access.username
             mGamesInstance.changePlayerName(access.username)
-            Crashlytics.setUserIdentifier(access.username)
-            Crashlytics.setUserName(firebaseAuth.currentUser?.email)
+
+            analytics.setUserId(access.username)
+            analytics.setUserProperty("institution", SagresNavigator.instance.getSelectedInstitution())
+            analytics.setUserProperty("access_valid", "${access.valid}")
+            SagresNavigator.instance.putCredentials(SagresCredential(access.username, access.password, SagresNavigator.instance.getSelectedInstitution()))
 
             if (!access.valid) {
-                val snack = Snackbar.make(binding.snack, R.string.invalid_access_snack, Snackbar.LENGTH_INDEFINITE)
+                val snack = Snackbar.make(binding.root, R.string.invalid_access_snack, Snackbar.LENGTH_INDEFINITE)
                 snack.setAction(R.string.invalid_access_snack_solve) {
                     showInvalidAccessDialog()
                     snack.dismiss()
                 }
+                snack.anchorView = binding.bottomNavigation
                 snack.config()
                 snack.show()
             }
@@ -307,52 +312,82 @@ class HomeActivity : UGameActivity(), HasSupportFragmentInjector {
 
     override fun onSupportNavigateUp(): Boolean = findNavController(R.id.home_nav_host).navigateUp()
 
-    override fun showSnack(string: String, long: Boolean) {
-        val snack = getSnackInstance(string, long)
+    override fun showSnack(string: String, duration: Int) {
+        val snack = getSnackInstance(string, duration)
         snack.show()
     }
 
-    override fun getSnackInstance(string: String, long: Boolean): Snackbar {
-        val snack = Snackbar.make(binding.snack, string, if (long) Snackbar.LENGTH_LONG else Snackbar.LENGTH_SHORT)
+    override fun getSnackInstance(string: String, duration: Int): Snackbar {
+        val snack = Snackbar.make(binding.root, string, duration)
         snack.config()
+        snack.anchorView = binding.bottomNavigation
         return snack
     }
 
     override fun checkAchievements(email: String?) {
-        adventureViewModel.checkAchievements().observe(this, Observer {
+        adventureViewModel.checkAchievements().observe(this) {
             it.entries.forEach { achievement ->
                 if (achievement.value == -1)
                     unlockAchievement(achievement.key)
                 else
                     updateAchievementProgress(achievement.key, achievement.value)
             }
-        })
+        }
+        checkServerAchievements()
     }
 
     override fun checkNotConnectedAchievements() {
-        adventureViewModel.checkNotConnectedAchievements().observe(this, Observer { Unit })
+        adventureViewModel.checkNotConnectedAchievements().observe(this, {})
     }
 
-    override fun supportFragmentInjector(): AndroidInjector<Fragment> = fragmentInjector
+    private fun checkServerAchievements() {
+        adventureViewModel.checkServerAchievements().observe(this) { achievements ->
+            achievements.forEach { achievement ->
+                try {
+                    if (achievement.progress != null) {
+                        updateAchievementProgress(achievement.identifier, achievement.progress)
+                    } else {
+                        unlockAchievement(achievement.identifier)
+                    }
+                } catch (error: Throwable) { Timber.e(error, "Failed to unlock achievement ${achievement.identifier}") }
+            }
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        viewModel.onUserInteraction()
+        updateManager.appUpdateInfo.addOnSuccessListener {
+            if (viewModel.updateType == AppUpdateType.IMMEDIATE && it.updateAvailability() == UpdateAvailability.DEVELOPER_TRIGGERED_UPDATE_IN_PROGRESS) {
+                updateManager.startUpdateFlowForResult(it, AppUpdateType.IMMEDIATE, this, REQUEST_IN_APP_UPDATE)
+            } else if (viewModel.updateType != AppUpdateType.IMMEDIATE && it.installStatus() == InstallStatus.DOWNLOADED) {
+                showSnackbarForRestartRequired()
+            }
+        }
+    }
 
     private fun onStateUpdateChanged(state: InstallState) {
-        when {
-            state.installStatus() == InstallStatus.DOWNLOADED -> {
+        viewModel.setCurrentUpdateState(state.installStatus())
+        when (state.installStatus()) {
+            InstallStatus.DOWNLOADED -> {
                 updateManager.unregisterListener(updateListener)
                 showSnackbarForRestartRequired()
             }
-            state.installStatus() == InstallStatus.FAILED -> showSnack(getString(R.string.in_app_update_request_failed_or_canceled))
-            state.installStatus() == InstallStatus.CANCELED -> showSnack(getString(R.string.in_app_update_request_failed_or_canceled))
+            InstallStatus.FAILED -> showSnack(getString(R.string.in_app_update_request_failed_or_canceled))
+            InstallStatus.CANCELED -> showSnack(getString(R.string.in_app_update_request_failed_or_canceled))
+            else -> Unit
         }
     }
 
     private fun showSnackbarForRestartRequired() {
         val message = getString(R.string.in_app_updates_update_ready)
         val restart = getString(R.string.in_app_updates_restart_app)
-        val snack = Snackbar.make(binding.snack, message, Snackbar.LENGTH_INDEFINITE).apply {
+        val snack = Snackbar.make(binding.root, message, Snackbar.LENGTH_INDEFINITE).apply {
             setAction(restart) { updateManager.completeUpdate() }
         }
         snack.config()
+        snack.anchorView = binding.bottomNavigation
+        snack.show()
     }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
@@ -365,10 +400,7 @@ class HomeActivity : UGameActivity(), HasSupportFragmentInjector {
                 }
                 RESULT_IN_APP_UPDATE_FAILED -> {
                     val message = getString(R.string.in_app_update_request_failed)
-                    showSnack(message, true)
-                }
-                else -> {
-                    updateManager.registerListener(updateListener)
+                    showSnack(message, Snackbar.LENGTH_LONG)
                 }
             }
         }
@@ -384,135 +416,12 @@ class HomeActivity : UGameActivity(), HasSupportFragmentInjector {
         viewModel.onUserInteraction()
     }
 
-    private fun prepareAdsForPublic(willShowAd: Boolean = true) {
-        if (!willShowAd) return
-
-        executors.others().execute {
-            val account = viewModel.getAccountSync()
-            onSelectAdType(account, willShowAd)
-        }
-    }
-
-    private fun onSelectAdType(account: Account?, willShowAd: Boolean) {
-        if (!willShowAd || account == null) return
-
-        val code = when (account.grouping) {
-            null, 0 -> R.string.admob_common
-
-            1 -> R.string.admob_frequency_low
-            2 -> R.string.admob_frequency_medium
-            3 -> R.string.admob_frequency_high
-
-            4 -> R.string.admob_size_small
-            5 -> R.string.admob_size_medium
-            6 -> R.string.admob_size_big
-
-            7 -> R.string.admob_content_rich_text
-            8 -> R.string.admob_content_everything
-
-            else -> null
-        }
-
-        code ?: return
-        executors.mainThread().execute { onAdTypeSelected(code, account.grouping ?: 0) }
-    }
-
-    private fun onAdTypeSelected(@StringRes code: Int, @IntRange(from = 0, to = 8) grouping: Int) {
-        val unitId = getString(code)
-        when (grouping) {
-            4 -> setupSmallAd(unitId)
-            5 -> setupMediumAd(unitId)
-            else -> setupInterstitial(unitId)
-        }
-    }
-
-    private fun setupInterstitial(unitId: String) {
-        val interstitial = InterstitialAd(this)
-        val request = AdRequest.Builder().build()
-        interstitial.adUnitId = unitId
-        interstitial.loadAd(request)
-        interstitial.adListener = object : AdListener() {
-            override fun onAdLoaded() {
-                interstitial.show()
-            }
-
-            override fun onAdClicked() {
-                viewModel.onUserClickedAd()
-            }
-
-            override fun onAdImpression() {
-                viewModel.onUserAdImpression()
-            }
-        }
-    }
-
-    private fun setupMediumAd(unitId: String) {
-        val adView = AdView(this)
-        adView.id = R.id.adViewConnect
-        adView.adSize = AdSize.LARGE_BANNER
-        adView.adUnitId = unitId
-        placeAdViewOnLayout(adView)
-    }
-
-    private fun setupSmallAd(unitId: String) {
-        val adView = AdView(this)
-        adView.id = R.id.adViewConnect
-        adView.adSize = AdSize.SMART_BANNER
-        adView.adUnitId = unitId
-        placeAdViewOnLayout(adView)
-    }
-
-    private fun placeAdViewOnLayout(adView: AdView) {
-        adView.adListener = object : AdListener() {
-            override fun onAdClicked() { viewModel.onUserClickedAd() }
-            override fun onAdImpression() { viewModel.onUserAdImpression() }
-        }
-
-        val set = ConstraintSet()
-        val constraintLayout = binding.internalContent
-
-        constraintLayout.addView(
-            adView, ConstraintLayout.LayoutParams(
-                ConstraintLayout.LayoutParams.MATCH_CONSTRAINT,
-                ConstraintLayout.LayoutParams.WRAP_CONTENT
-            )
-        )
-        set.clone(constraintLayout)
-        set.connect(
-            R.id.adViewConnect,
-            ConstraintSet.BOTTOM,
-            constraintLayout.id,
-            ConstraintSet.BOTTOM,
-            0
-        )
-        set.connect(
-            R.id.adViewConnect,
-            ConstraintSet.START,
-            constraintLayout.id,
-            ConstraintSet.START,
-            0
-        )
-        set.connect(
-            R.id.adViewConnect,
-            ConstraintSet.END,
-            constraintLayout.id,
-            ConstraintSet.END,
-            0
-        )
-        set.applyTo(constraintLayout)
-
-        val contentSet = ConstraintSet()
-        contentSet.clone(constraintLayout)
-        contentSet.connect(
-            R.id.home_nav_host,
-            ConstraintSet.BOTTOM,
-            R.id.adViewConnect,
-            ConstraintSet.TOP,
-            0
-        )
-        contentSet.applyTo(constraintLayout)
-
-        val request = AdRequest.Builder().build()
-        adView.loadAd(request)
+    companion object {
+        const val EXTRA_FRAGMENT_DIRECTIONS = "extra_directions"
+        const val EXTRA_MESSAGES_SAGRES_DIRECTION = "messages.sagres"
+        const val EXTRA_BIGTRAY_DIRECTION = "home.bigtray"
+        const val EXTRA_GRADES_DIRECTION = "grades"
+        const val EXTRA_DEMAND_DIRECTION = "demand"
+        const val EXTRA_REQUEST_SERVICE_DIRECTION = "request_service"
     }
 }

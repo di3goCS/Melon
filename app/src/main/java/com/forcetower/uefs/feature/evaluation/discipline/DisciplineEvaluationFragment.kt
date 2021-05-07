@@ -2,7 +2,7 @@
  * This file is part of the UNES Open Source Project.
  * UNES is licensed under the GNU GPLv3.
  *
- * Copyright (c) 2019.  João Paulo Sena <joaopaulo761@gmail.com>
+ * Copyright (c) 2020. João Paulo Sena <joaopaulo761@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -26,32 +26,27 @@ import android.view.View
 import android.view.View.GONE
 import android.view.View.VISIBLE
 import android.view.ViewGroup
-import androidx.lifecycle.Observer
+import androidx.fragment.app.viewModels
 import androidx.navigation.fragment.findNavController
 import androidx.navigation.fragment.navArgs
-import com.forcetower.uefs.core.injection.Injectable
+import com.forcetower.core.lifecycle.EventObserver
 import com.forcetower.uefs.core.model.service.EvaluationDiscipline
 import com.forcetower.uefs.core.storage.resource.Resource
 import com.forcetower.uefs.core.storage.resource.Status
-import com.forcetower.uefs.core.vm.EventObserver
-import com.forcetower.uefs.core.vm.UViewModelFactory
 import com.forcetower.uefs.databinding.FragmentEvaluationDisciplineBinding
 import com.forcetower.uefs.feature.evaluation.EvaluationViewModel
 import com.forcetower.uefs.feature.shared.UFragment
-import com.forcetower.uefs.feature.shared.extensions.provideViewModel
+import dagger.hilt.android.AndroidEntryPoint
 import timber.log.Timber
-import javax.inject.Inject
 
-class DisciplineEvaluationFragment : UFragment(), Injectable {
-    @Inject
-    lateinit var factory: UViewModelFactory
-    private lateinit var viewModel: EvaluationViewModel
+@AndroidEntryPoint
+class DisciplineEvaluationFragment : UFragment() {
+    private val viewModel: EvaluationViewModel by viewModels()
     private lateinit var binding: FragmentEvaluationDisciplineBinding
     private lateinit var elements: EvaluationElementsAdapter
     private val args: DisciplineEvaluationFragmentArgs by navArgs()
 
-    override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View? {
-        viewModel = provideViewModel(factory)
+    override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         elements = EvaluationElementsAdapter(viewModel)
         return FragmentEvaluationDisciplineBinding.inflate(inflater, container, false).also {
             binding = it
@@ -59,9 +54,9 @@ class DisciplineEvaluationFragment : UFragment(), Injectable {
         }.root
     }
 
-    override fun onActivityCreated(savedInstanceState: Bundle?) {
-        super.onActivityCreated(savedInstanceState)
-        viewModel.getDiscipline(args.department, args.code).observe(this, Observer { handleData(it) })
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+        viewModel.getDiscipline(args.department, args.code).observe(viewLifecycleOwner, { handleData(it) })
         binding.itemsRecycler.apply {
             adapter = elements
             itemAnimator?.run {
@@ -71,10 +66,13 @@ class DisciplineEvaluationFragment : UFragment(), Injectable {
                 removeDuration = 100L
             }
         }
-        viewModel.teacherIntSelect.observe(this, EventObserver {
-            val directions = DisciplineEvaluationFragmentDirections.actionDisciplineToTeacher(it.id, null)
-            findNavController().navigate(directions)
-        })
+        viewModel.teacherIntSelect.observe(
+            viewLifecycleOwner,
+            EventObserver {
+                val directions = DisciplineEvaluationFragmentDirections.actionDisciplineToTeacher(it.id, null)
+                findNavController().navigate(directions)
+            }
+        )
         binding.btnEvaluate.setOnClickListener {
             val directions = DisciplineEvaluationFragmentDirections.actionEvalDisciplineToRating(args.code, args.department)
             findNavController().navigate(directions)
@@ -92,22 +90,22 @@ class DisciplineEvaluationFragment : UFragment(), Injectable {
             val teachers = data.teachers
             val evaluation = if (teachers != null) {
                 DisciplineEvaluation(
-                        data.name,
-                        data.departmentName ?: data.department,
-                        data.qtdStudents,
-                        teachers.groupBy { it.semesterSystemId }.entries.map { entry ->
-                            val key = entry.key
-                            val semester = entry.value
-                            val mean = semester.sumByDouble { it.mean } / semester.size
-                            val first = semester.first()
-                            SemesterMean(key, first.semester, mean)
-                        }.sortedBy { id * -1 },
-                        teachers.groupBy { it.teacherId }.entries.map { entry ->
-                            val appearances = entry.value
-                            val appear = appearances.maxBy { it.semesterSystemId }!!
-                            val mean = appearances.sumByDouble { it.mean } / appearances.size
-                            TeacherInt(appear.teacherId, appear.name, appear.semester, mean)
-                        }.sortedBy { it.name }
+                    data.name,
+                    data.departmentName ?: data.department,
+                    data.qtdStudents,
+                    teachers.groupBy { it.semesterSystemId }.entries.map { entry ->
+                        val key = entry.key
+                        val semester = entry.value
+                        val mean = semester.sumByDouble { it.mean } / semester.size
+                        val first = semester.first()
+                        SemesterMean(key, first.semester, mean)
+                    }.sortedBy { id * -1 },
+                    teachers.groupBy { it.teacherId }.entries.map { entry ->
+                        val appearances = entry.value
+                        val appear = appearances.maxByOrNull { it.semesterSystemId }!!
+                        val mean = appearances.sumByDouble { it.mean } / appearances.size
+                        TeacherInt(appear.teacherId, appear.name, appear.semester, mean)
+                    }.sortedBy { it.name }
                 )
             } else {
                 DisciplineEvaluation(data.name, data.departmentName ?: data.department, data.qtdStudents, listOf(), listOf())

@@ -2,7 +2,7 @@
  * This file is part of the UNES Open Source Project.
  * UNES is licensed under the GNU GPLv3.
  *
- * Copyright (c) 2019.  João Paulo Sena <joaopaulo761@gmail.com>
+ * Copyright (c) 2020. João Paulo Sena <joaopaulo761@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -32,48 +32,49 @@ import android.widget.TextView
 import androidx.core.app.ActivityOptionsCompat
 import androidx.core.content.ContextCompat
 import androidx.core.content.res.ResourcesCompat
+import androidx.fragment.app.viewModels
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.Observer
 import androidx.navigation.ActivityNavigator
 import androidx.navigation.findNavController
 import androidx.navigation.fragment.findNavController
+import androidx.navigation.fragment.navArgs
 import com.forcetower.sagres.operation.Callback
 import com.forcetower.sagres.operation.Status
 import com.forcetower.uefs.R
-import com.forcetower.uefs.core.injection.Injectable
 import com.forcetower.uefs.core.model.unes.Profile
 import com.forcetower.uefs.core.storage.repository.LoginSagresRepository
 import com.forcetower.uefs.core.util.fromJson
-import com.forcetower.uefs.core.vm.UViewModelFactory
 import com.forcetower.uefs.databinding.FragmentSigningInBinding
 import com.forcetower.uefs.feature.shared.UFragment
-import com.forcetower.uefs.feature.shared.extensions.provideViewModel
 import com.forcetower.uefs.feature.shared.fadeIn
 import com.forcetower.uefs.feature.shared.fadeOut
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.storage.FirebaseStorage
+import dagger.hilt.android.AndroidEntryPoint
 import timber.log.Timber
 import java.nio.charset.Charset
 import javax.inject.Inject
 
-class SigningInFragment : UFragment(), Injectable {
-    @Inject
-    lateinit var factory: UViewModelFactory
+@AndroidEntryPoint
+class SigningInFragment : UFragment() {
     @Inject
     lateinit var firebaseAuth: FirebaseAuth
     @Inject
     lateinit var firebaseStorage: FirebaseStorage
 
     private lateinit var binding: FragmentSigningInBinding
-    private lateinit var viewModel: LoginViewModel
+    private val viewModel: LoginViewModel by viewModels()
     private lateinit var messages: Array<String>
+
+    private val args by navArgs<SigningInFragmentArgs>()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         firebaseAuth = FirebaseAuth.getInstance()
     }
 
-    override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View? {
+    override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         return FragmentSigningInBinding.inflate(inflater, container, false).also {
             binding = it
             prepareSwitcher()
@@ -127,12 +128,11 @@ class SigningInFragment : UFragment(), Injectable {
         }
     }
 
-    override fun onActivityCreated(savedInstanceState: Bundle?) {
-        super.onActivityCreated(savedInstanceState)
-        viewModel = provideViewModel(factory)
-        viewModel.getLogin().observe(this, Observer<Callback>(this::onLoginProgress))
-        viewModel.getProfile().observe(this, Observer(this::onProfileUpdate))
-        viewModel.getStep().observe(this, Observer<LoginSagresRepository.Step>(this::onStep))
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+        viewModel.getLogin().observe(viewLifecycleOwner, { onLoginProgress(it) })
+        viewModel.getProfile().observe(viewLifecycleOwner, Observer(this::onProfileUpdate))
+        viewModel.getStep(args.snowpiercer).observe(viewLifecycleOwner, Observer(this::onStep))
         doLogin()
     }
 
@@ -146,21 +146,26 @@ class SigningInFragment : UFragment(), Injectable {
         val position = (Math.random() * (messages.size - 1)).toInt()
         val message = messages[position]
         binding.textStatus.setText(message)
-        Handler(Looper.getMainLooper()).postDelayed({
-            if (lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED))
-                displayRandomText()
-        }, 3000)
+        Handler(Looper.getMainLooper()).postDelayed(
+            {
+                if (lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED))
+                    displayRandomText()
+            },
+            3000
+        )
     }
 
     private fun doLogin() {
-        val username = arguments?.getString("username")
-        val password = arguments?.getString("password")
+        val username = args.username
+        val password = args.password
+        val captcha = args.captchaToken
+        val snowpiercer = args.snowpiercer
 
-        if (username.isNullOrBlank() || password.isNullOrBlank()) {
+        if (username.isBlank() || password.isBlank()) {
             showSnack(getString(R.string.error_invalid_credentials))
             view?.findNavController()?.popBackStack()
         } else {
-            viewModel.login(username, password, true)
+            viewModel.login(username, password, captcha, snowpiercer, true)
             if (username.contains("@")) {
                 binding.textTips.setText(getString(R.string.enter_using_username_instead))
                 binding.textTips.fadeIn()
@@ -171,17 +176,18 @@ class SigningInFragment : UFragment(), Injectable {
     }
 
     private fun onStep(step: LoginSagresRepository.Step) {
-        binding.contentLoading.setProgressWithAnimation(step.step.toFloat()*100 / step.count)
+        binding.contentLoading.setProgressWithAnimation(step.step.toFloat() * 100 / step.count)
     }
 
     private fun onLoginProgress(callback: Callback) {
+        Timber.d("${callback.status}, ${callback.message}")
         when (callback.status) {
             Status.STARTED -> Timber.d("Status: Started")
             Status.LOADING -> Timber.d("Status: Loading")
             Status.INVALID_LOGIN -> snackAndBack(getString(R.string.error_invalid_credentials))
             Status.APPROVING -> Timber.d("Status: Approving")
             Status.NETWORK_ERROR -> snackAndBack(getString(R.string.error_network_error))
-            Status.RESPONSE_FAILED -> snackAndBack(getString(R.string.error_unexpected_response))
+            Status.RESPONSE_FAILED -> snackAndBack(getString(R.string.error_unexpected_response_joke))
             Status.SUCCESS -> completeLogin()
             Status.APPROVAL_ERROR -> snackAndBack(getString(R.string.error_network_error))
             Status.GRADES_FAILED -> completeLogin()
@@ -215,18 +221,21 @@ class SigningInFragment : UFragment(), Injectable {
         viewModel.setConnected()
         val options = ActivityOptionsCompat.makeSceneTransitionAnimation(requireActivity(), binding.imageCenter, getString(R.string.user_image_transition))
         val extras = ActivityNavigator.Extras.Builder()
-                .setActivityOptions(options)
-                .build()
+            .setActivityOptions(options)
+            .build()
 
         binding.textHelloUser.fadeOut()
 
-        Handler(Looper.getMainLooper()).postDelayed({
-            if (lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) {
-                binding.textHelloUser.text = ""
-                findNavController().navigate(R.id.action_login_to_setup, null, null, extras)
-                activity?.finishAfterTransition()
-            }
-        }, 1000)
+        Handler(Looper.getMainLooper()).postDelayed(
+            {
+                if (lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) {
+                    binding.textHelloUser.text = ""
+                    findNavController().navigate(R.id.action_login_to_setup, null, null, extras)
+                    activity?.finishAfterTransition()
+                }
+            },
+            1000
+        )
     }
 
     private fun firebaseAuthListener() {
@@ -246,6 +255,6 @@ class SigningInFragment : UFragment(), Injectable {
         binding.textHelloUser.text = ""
         binding.textHelloUser.fadeOut()
         binding.textTips.fadeOut()
-        view?.findNavController()?.popBackStack()
+        findNavController().popBackStack(R.id.login_form, false)
     }
 }

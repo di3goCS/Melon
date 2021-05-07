@@ -3,7 +3,7 @@
   ~ This file is part of the UNES Open Source Project.
   ~ UNES is licensed under the GNU GPLv3.
   ~
-  ~ Copyright (c) 2019.  João Paulo Sena <joaopaulo761@gmail.com>
+  ~ Copyright (c) 2020. João Paulo Sena <joaopaulo761@gmail.com>
   ~
   ~ This program is free software: you can redistribute it and/or modify
   ~ it under the terms of the GNU General Public License as published by
@@ -44,6 +44,12 @@
         <item name="colorPrimaryLight">@color/colorPrimaryLight</item>
         <item name="colorAccent">@color/colorAccent</item>
 
+        <item name="colorControlHighlight">@color/controlHighlight</item>
+        <item name="android:colorControlHighlight">@color/controlHighlight</item>
+        <item name="android:textColorHighlight">@color/controlHighlight</item>
+
+        <item name="android:textAppearance">@style/TextAppearanceBase</item>
+
         <item name="background">@color/background</item>
         <item name="android:windowBackground">@color/background</item>
         <item name="colorPrimaryAlpha">@color/colorPrimaryAlpha</item>
@@ -75,7 +81,6 @@
 
         <item name="iconColor">?attr/colorOnBackground</item>
         <item name="android:windowAnimationStyle">@style/WindowAnimationDefaultTransition</item>
-        <item name="viewInflaterClass">androidx.appcompat.app.AppCompatViewInflater</item>
     </style>
     
     <style name="UTheme.TransparentStatus" parent="UTheme.LightNav">
@@ -83,5 +88,9 @@
         <item name="android:windowTranslucentStatus">true</item>
         <item name="android:statusBarColor">@android:color/transparent</item>
         <item name="android:windowLightStatusBar">false</item>
+    </style>
+
+    <style name="UTheme.NoInsets.Base">
+        <item name="android:windowLightStatusBar">@bool/not_on_night_mode</item>
     </style>
 </resources>

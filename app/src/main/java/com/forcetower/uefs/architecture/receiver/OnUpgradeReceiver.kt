@@ -2,7 +2,7 @@
  * This file is part of the UNES Open Source Project.
  * UNES is licensed under the GNU GPLv3.
  *
- * Copyright (c) 2019.  João Paulo Sena <joaopaulo761@gmail.com>
+ * Copyright (c) 2020. João Paulo Sena <joaopaulo761@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -27,9 +27,10 @@ import android.content.SharedPreferences
 import com.forcetower.uefs.core.storage.repository.UpgradeRepository
 import com.forcetower.uefs.core.work.sync.SyncLinkedWorker
 import com.forcetower.uefs.core.work.sync.SyncMainWorker
-import dagger.android.AndroidInjection
+import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 
+@AndroidEntryPoint
 class OnUpgradeReceiver : BroadcastReceiver() {
     @Inject
     lateinit var preferences: SharedPreferences
@@ -38,7 +39,6 @@ class OnUpgradeReceiver : BroadcastReceiver() {
 
     override fun onReceive(context: Context, intent: Intent) {
         if (Intent.ACTION_MY_PACKAGE_REPLACED != intent.action) return
-        AndroidInjection.inject(this, context)
         repository.onUpgrade()
 
         val type = preferences.getString("stg_sync_worker_type", "0")?.toIntOrNull() ?: 0

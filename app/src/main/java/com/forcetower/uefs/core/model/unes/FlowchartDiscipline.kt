@@ -2,7 +2,7 @@
  * This file is part of the UNES Open Source Project.
  * UNES is licensed under the GNU GPLv3.
  *
- * Copyright (c) 2019.  João Paulo Sena <joaopaulo761@gmail.com>
+ * Copyright (c) 2020. João Paulo Sena <joaopaulo761@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -26,13 +26,16 @@ import androidx.room.ForeignKey.CASCADE
 import androidx.room.Index
 import androidx.room.PrimaryKey
 
-@Entity(foreignKeys = [
-    ForeignKey(entity = Discipline::class, childColumns = ["disciplineId"], parentColumns = ["uid"], onUpdate = CASCADE, onDelete = CASCADE),
-    ForeignKey(entity = FlowchartSemester::class, childColumns = ["semesterId"], parentColumns = ["id"], onUpdate = CASCADE, onDelete = CASCADE)
-], indices = [
-    Index(value = ["disciplineId"]),
-    Index(value = ["semesterId"])
-])
+@Entity(
+    foreignKeys = [
+        ForeignKey(entity = Discipline::class, childColumns = ["disciplineId"], parentColumns = ["uid"], onUpdate = CASCADE, onDelete = CASCADE),
+        ForeignKey(entity = FlowchartSemester::class, childColumns = ["semesterId"], parentColumns = ["id"], onUpdate = CASCADE, onDelete = CASCADE)
+    ],
+    indices = [
+        Index(value = ["disciplineId"]),
+        Index(value = ["semesterId"])
+    ]
+)
 data class FlowchartDiscipline(
     @PrimaryKey(autoGenerate = false)
     val id: Long,

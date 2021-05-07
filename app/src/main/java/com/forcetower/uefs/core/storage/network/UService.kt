@@ -2,7 +2,7 @@
  * This file is part of the UNES Open Source Project.
  * UNES is licensed under the GNU GPLv3.
  *
- * Copyright (c) 2019.  João Paulo Sena <joaopaulo761@gmail.com>
+ * Copyright (c) 2020. João Paulo Sena <joaopaulo761@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -23,13 +23,20 @@ package com.forcetower.uefs.core.storage.network
 import androidx.lifecycle.LiveData
 import com.forcetower.sagres.SagresNavigator
 import com.forcetower.uefs.core.constants.Constants
+import com.forcetower.uefs.core.model.api.DarkInvite
+import com.forcetower.uefs.core.model.api.DarkUnlock
 import com.forcetower.uefs.core.model.api.EverythingSnippet
 import com.forcetower.uefs.core.model.api.ImgurUpload
 import com.forcetower.uefs.core.model.api.UResponse
+import com.forcetower.uefs.core.model.service.Achievement
+import com.forcetower.uefs.core.model.service.AffinityQuestionAnswer
+import com.forcetower.uefs.core.model.service.AffinityQuestionDTO
 import com.forcetower.uefs.core.model.service.EvaluationDiscipline
 import com.forcetower.uefs.core.model.service.EvaluationHomeTopic
 import com.forcetower.uefs.core.model.service.EvaluationTeacher
+import com.forcetower.uefs.core.model.service.FlowchartDTO
 import com.forcetower.uefs.core.model.service.UNESUpdate
+import com.forcetower.uefs.core.model.service.UserSessionDTO
 import com.forcetower.uefs.core.model.service.discipline.DisciplineDetailsData
 import com.forcetower.uefs.core.model.siecomp.ServerSession
 import com.forcetower.uefs.core.model.siecomp.Speaker
@@ -37,17 +44,14 @@ import com.forcetower.uefs.core.model.unes.Access
 import com.forcetower.uefs.core.model.unes.AccessToken
 import com.forcetower.uefs.core.model.unes.Account
 import com.forcetower.uefs.core.model.unes.Course
-import com.forcetower.uefs.core.model.unes.Profile
-import com.forcetower.uefs.core.model.unes.Question
-import com.forcetower.uefs.core.storage.network.adapter.ApiResponse
-import com.forcetower.uefs.core.model.api.DarkInvite
-import com.forcetower.uefs.core.model.api.DarkUnlock
-import com.forcetower.uefs.core.model.service.FlowchartDTO
-import com.forcetower.uefs.core.model.service.UserSessionDTO
 import com.forcetower.uefs.core.model.unes.CreateStatementParams
+import com.forcetower.uefs.core.model.unes.Event
 import com.forcetower.uefs.core.model.unes.Flowchart
+import com.forcetower.uefs.core.model.unes.Profile
 import com.forcetower.uefs.core.model.unes.ProfileStatement
+import com.forcetower.uefs.core.model.unes.Question
 import com.forcetower.uefs.core.model.unes.SStudentDTO
+import com.forcetower.uefs.core.storage.network.adapter.ApiResponse
 import retrofit2.Call
 import retrofit2.http.Body
 import retrofit2.http.Field
@@ -78,6 +82,27 @@ interface UService {
         @Field("client_id") client: String = Constants.SERVICE_CLIENT_ID,
         @Field("client_secret") secret: String = Constants.SERVICE_CLIENT_SECRET
     ): Call<AccessToken>
+
+    @POST("oauth/token")
+    @FormUrlEncoded
+    suspend fun loginWithSagresSuspend(
+        @Field("username") username: String,
+        @Field("password") password: String,
+        @Field("grant_type") grant: String = "sagres",
+        @Field("client_id") client: String = Constants.SERVICE_CLIENT_ID,
+        @Field("client_secret") secret: String = Constants.SERVICE_CLIENT_SECRET,
+        @Field("institution") institution: String = SagresNavigator.instance.getSelectedInstitution().toLowerCase(Locale.ROOT)
+    ): AccessToken
+
+    @POST("oauth/token")
+    @FormUrlEncoded
+    suspend fun loginSuspend(
+        @Field("username") username: String,
+        @Field("password") password: String,
+        @Field("grant_type") grant: String = "password",
+        @Field("client_id") client: String = Constants.SERVICE_CLIENT_ID,
+        @Field("client_secret") secret: String = Constants.SERVICE_CLIENT_SECRET
+    ): AccessToken
 
     @POST("account/credentials")
     fun setupAccount(@Body access: Access): Call<UResponse<Void>>
@@ -119,7 +144,7 @@ interface UService {
     fun saveSessions(@Body session: UserSessionDTO): Call<Void>
 
     @GET("courses")
-    fun getCourses(): Call<List<Course>>
+    suspend fun getCourses(): List<Course>
 
     @GET("synchronization")
     fun getUpdate(): Call<UNESUpdate>
@@ -168,7 +193,11 @@ interface UService {
     @GET("student/me")
     fun getMeStudent(): Call<UResponse<SStudentDTO>>
 
-    // ---------------------------------
+    // --------- Achievements ---------
+    @GET("adventure/achievement")
+    fun getServerAchievements(): Call<UResponse<List<Achievement>>>
+
+    // ----------- SIECOMP ------------
 
     @GET("siecomp/list_sessions")
     fun siecompSessions(): LiveData<ApiResponse<List<ServerSession>>>
@@ -178,4 +207,37 @@ interface UService {
 
     @POST("siecomp/edit_speaker")
     fun updateSpeaker(@Body speaker: Speaker): Call<Void>
+
+    // ---------- Affinity -----------
+    @GET("affinity/questions")
+    fun affinityQuestions(): Call<UResponse<List<AffinityQuestionDTO>>>
+
+    @POST("affinity/answer")
+    fun answerAffinity(@Body answer: AffinityQuestionAnswer): Call<UResponse<Void>>
+
+    // --------- General Events ---------
+    @GET("events")
+    suspend fun events(): UResponse<List<Event>>
+
+    @POST("events/create")
+    suspend fun sendEvent(@Body event: Event): UResponse<Void>
+
+    @FormUrlEncoded
+    @POST("events/approve")
+    suspend fun approveEvent(@Field("id") id: Long): UResponse<Void>
+
+    @FormUrlEncoded
+    @POST("events/delete")
+    suspend fun deleteEvent(@Field("id") id: Long): UResponse<Void>
+
+    // ---------- Toss a coin -----------
+    @FormUrlEncoded
+    @POST("cookie/save")
+    fun prepareSession(@Field("cookies") cookies: String): Call<UResponse<Void>>
+
+    @GET("cookie/retrieve")
+    fun getSession(): Call<UResponse<String>>
+
+    @GET("cookie/invalidate")
+    fun invalidateSession(): Call<UResponse<Void>>
 }

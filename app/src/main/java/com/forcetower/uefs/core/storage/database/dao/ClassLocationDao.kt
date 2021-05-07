@@ -2,7 +2,7 @@
  * This file is part of the UNES Open Source Project.
  * UNES is licensed under the GNU GPLv3.
  *
- * Copyright (c) 2019.  João Paulo Sena <joaopaulo761@gmail.com>
+ * Copyright (c) 2020. João Paulo Sena <joaopaulo761@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,6 +20,7 @@
 
 package com.forcetower.uefs.core.storage.database.dao
 
+import androidx.annotation.WorkerThread
 import androidx.lifecycle.LiveData
 import androidx.room.Dao
 import androidx.room.Insert
@@ -28,7 +29,6 @@ import androidx.room.OnConflictStrategy.REPLACE
 import androidx.room.Query
 import androidx.room.Transaction
 import androidx.room.Update
-import com.crashlytics.android.Crashlytics
 import com.forcetower.sagres.database.model.SagresDisciplineClassLocation
 import com.forcetower.uefs.core.model.unes.Class
 import com.forcetower.uefs.core.model.unes.ClassGroup
@@ -36,7 +36,10 @@ import com.forcetower.uefs.core.model.unes.ClassLocation
 import com.forcetower.uefs.core.model.unes.Discipline
 import com.forcetower.uefs.core.model.unes.Profile
 import com.forcetower.uefs.core.model.unes.Semester
-import com.forcetower.uefs.core.storage.database.accessors.LocationWithGroup
+import com.forcetower.uefs.core.storage.database.aggregation.ClassLocationWithData
+import com.forcetower.uefs.feature.shared.extensions.createTimeInt
+import com.forcetower.uefs.feature.shared.extensions.fromWeekDay
+import kotlinx.coroutines.flow.Flow
 import timber.log.Timber
 
 @Dao
@@ -48,19 +51,66 @@ abstract class ClassLocationDao {
     abstract fun getAllLocationsDirect(): List<ClassLocation>
 
     @Transaction
-    @Query("SELECT cl.* FROM ClassLocation cl, Profile p WHERE cl.profile_id = p.uid AND p.me = 1")
-    abstract fun getCurrentSchedule(): LiveData<List<LocationWithGroup>>
+    @Query("SELECT cl.* FROM ClassLocation cl, Profile p WHERE cl.profile_id = p.uid AND p.me = 1 AND cl.hidden_on_schedule = 0")
+    abstract fun getCurrentVisibleSchedule(): LiveData<List<ClassLocationWithData>>
+
+    @Transaction
+    @Query("SELECT cl.* FROM ClassLocation cl, Profile p WHERE cl.profile_id = p.uid AND p.me = 1 AND cl.hidden_on_schedule = 0")
+    abstract fun getCurrentVisibleSchedulePerformance(): Flow<List<ClassLocationWithData>>
+
+    @Transaction
+    @Query("SELECT cl.* FROM ClassLocation cl, Profile p WHERE cl.profile_id = p.uid AND p.me = 1 AND cl.hidden_on_schedule = 0 AND cl.dayInt = :dayInt AND (((cl.endsAtInt - cl.startsAtInt) / 2) + cl.startsAtInt) > :currentTimeInt ORDER BY startsAtInt LIMIT 1")
+    abstract fun getCurrentClass(dayInt: Int, currentTimeInt: Int): LiveData<ClassLocationWithData?>
+
+    @Transaction
+    @Query("SELECT cl.* FROM ClassLocation cl, Profile p WHERE cl.profile_id = p.uid AND p.me = 1 AND cl.hidden_on_schedule = 0 AND cl.dayInt = :dayInt AND cl.startsAtInt >= :currentTimeInt ORDER BY startsAtInt LIMIT 1")
+    abstract suspend fun getCurrentClassDirect(dayInt: Int, currentTimeInt: Int): ClassLocationWithData?
 
     @Query("SELECT cl.* FROM ClassLocation cl")
     abstract fun getCurrentScheduleDirect(): List<ClassLocation>
 
+    @Query("SELECT cl.* FROM ClassLocation cl INNER JOIN ClassGroup cg ON cl.group_id = cg.uid WHERE cg.class_id = :classId GROUP BY cl.uid")
+    abstract fun getLocationsOfClass(classId: Long): LiveData<List<ClassLocation>>
+
+    @WorkerThread
+    @Query("UPDATE ClassLocation SET hidden_on_schedule = :hide WHERE group_id = :groupId AND day = :day AND starts_at = :startsAt AND ends_at = :endsAt AND profile_id = :profileId")
+    abstract fun setClassHiddenHidden(hide: Boolean, groupId: Long, day: String, startsAt: String, endsAt: String, profileId: Long): Int
+
+    @WorkerThread
+    @Query("UPDATE ClassLocation SET hidden_on_schedule = :hide WHERE uid = :locationId")
+    abstract fun setClassHiddenHidden(hide: Boolean, locationId: Long): Int
+
+    @Query("SELECT COUNT(uid) FROM ClassLocation WHERE hidden_on_schedule = 1")
+    abstract fun getHiddenClassesCount(): LiveData<Int>
+
     @Transaction
-    open fun putSchedule(locations: List<SagresDisciplineClassLocation>) {
+    open suspend fun putNewSchedule(allocations: List<ClassLocation>) {
+        if (allocations.isEmpty()) return
+
+        val profile = getMeProfile()
+        profile ?: return
+
+        val hidden = getHiddenLocations()
+        wipeScheduleProfile(profile.uid)
+
+        allocations.forEach { insert(it) }
+        hidden.forEach { setClassHiddenHidden(true, it.groupId, it.day, it.startsAt, it.endsAt, it.profileId) }
+    }
+
+    @WorkerThread
+    @Transaction
+    open fun putSchedule(locations: List<SagresDisciplineClassLocation>, deterministic: Boolean) {
         if (locations.isEmpty()) return
 
-        val semester = selectCurrentSemesterDirect()
+        val semester = if (deterministic) {
+            selectCurrentSemesterDirect()
+        } else {
+            selectAllSemestersDirect().minOrNull()
+        }
+
         val profile = getMeProfile()
         if (semester == null || profile == null) return
+        val hidden = getHiddenLocations()
         wipeScheduleProfile(profile.uid)
 
         locations.forEach {
@@ -119,37 +169,47 @@ abstract class ClassLocationDao {
                         if (group!!.uid > 0) {
                             prepareInsertion(group!!, profile, it)
                         } else {
-                            Crashlytics.logException(Exception("Avoided exception:: Class Group -${it.classGroup}- Discipline Code: -${it.classCode}- Name: -${it.className}-"))
+                            Timber.e(Exception("Avoided exception:: Class Group -${it.classGroup}- Discipline Code: -${it.classCode}- Name: -${it.className}-"))
                         }
                     } else {
-                        Crashlytics.logException(Exception("Avoided exception:: disc_id -${discipline.uid}- smt_id: -${semester.uid}- Discipline Code: -${it.classCode}- Name: -${it.className}- Class Group -${it.classGroup}-"))
+                        Timber.e(Exception("Avoided exception:: disc_id -${discipline.uid}- smt_id: -${semester.uid}- Discipline Code: -${it.classCode}- Name: -${it.className}- Class Group -${it.classGroup}-"))
                     }
                 } else {
-                    Crashlytics.logException(Exception("Avoided exception:: Discipline Code: -${it.classCode}- Name: -${it.className}- Class Group -${it.classGroup}-"))
+                    Timber.e(Exception("Avoided exception:: Discipline Code: -${it.classCode}- Name: -${it.className}- Class Group -${it.classGroup}-"))
                 }
             }
         }
+
+        hidden.forEach { setClassHiddenHidden(true, it.groupId, it.day, it.startsAt, it.endsAt, it.profileId) }
     }
 
+    @WorkerThread
+    @Query("SELECT * FROM ClassLocation WHERE hidden_on_schedule = 1")
+    protected abstract fun getHiddenLocations(): List<ClassLocation>
+
     @Query("SELECT * FROM Discipline WHERE name = :className")
-    abstract fun selectDisciplineByName(className: String): Discipline?
+    protected abstract fun selectDisciplineByName(className: String): Discipline?
 
     @Query("SELECT * FROM Class WHERE discipline_id = :disciplineId AND semester_id = :semesterId")
-    abstract fun selectClass(disciplineId: Long, semesterId: Long): Class?
+    protected abstract fun selectClass(disciplineId: Long, semesterId: Long): Class?
 
     @Query("SELECT * FROM ClassGroup WHERE class_id = :classId AND `group` = :group")
-    abstract fun selectGroup(classId: Long, group: String): ClassGroup?
+    protected abstract fun selectGroup(classId: Long, group: String): ClassGroup?
 
     private fun prepareInsertion(group: ClassGroup, profile: Profile, location: SagresDisciplineClassLocation) {
         val entity = ClassLocation(
-                groupId = group.uid,
-                profileId = profile.uid,
-                startsAt = location.startTime,
-                endsAt = location.endTime,
-                campus = location.campus,
-                room = location.room,
-                day = location.day,
-                modulo = location.modulo)
+            groupId = group.uid,
+            profileId = profile.uid,
+            startsAt = location.startTime,
+            endsAt = location.endTime,
+            campus = location.campus,
+            room = location.room,
+            day = location.day,
+            modulo = location.modulo,
+            startsAtInt = location.startTime.createTimeInt(),
+            endsAtInt = location.endTime.createTimeInt(),
+            dayInt = location.day.fromWeekDay()
+        )
 
         insert(entity)
         group.group = location.classGroup
@@ -171,6 +231,9 @@ abstract class ClassLocationDao {
     @Query("SELECT * FROM Semester ORDER BY sagres_id DESC LIMIT 1")
     protected abstract fun selectCurrentSemesterDirect(): Semester?
 
+    @Query("SELECT * FROM Semester")
+    protected abstract fun selectAllSemestersDirect(): List<Semester>
+
     // TODO Find a better way to wipe current locations
     @Query("DELETE FROM ClassLocation WHERE profile_id = :profileId")
     protected abstract fun wipeScheduleProfile(profileId: Long)
@@ -186,4 +249,7 @@ abstract class ClassLocationDao {
 
     @Insert(onConflict = IGNORE)
     protected abstract fun insertGroup(group: ClassGroup): Long
+
+    @Query("SELECT COUNT(cl.uid) FROM ClassLocation cl, Profile p WHERE cl.profile_id = p.uid AND p.me = 1 AND cl.hidden_on_schedule = 0")
+    abstract fun hasSchedule(): LiveData<Boolean>
 }

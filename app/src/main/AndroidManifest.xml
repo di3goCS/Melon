@@ -3,7 +3,7 @@
   ~ This file is part of the UNES Open Source Project.
   ~ UNES is licensed under the GNU GPLv3.
   ~
-  ~ Copyright (c) 2019.  João Paulo Sena <joaopaulo761@gmail.com>
+  ~ Copyright (c) 2020. João Paulo Sena <joaopaulo761@gmail.com>
   ~
   ~ This program is free software: you can redistribute it and/or modify
   ~ it under the terms of the GNU General Public License as published by
@@ -20,16 +20,18 @@
   -->
 
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
     package="com.forcetower.uefs">
 
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
-    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
-    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
-    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="28"/>
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
     <uses-permission android:name="com.android.vending.BILLING" />
 
     <application
@@ -79,6 +81,10 @@
             android:theme="@style/UTheme.LightNav"
             android:parentActivityName=".feature.home.HomeActivity"/>
         <activity
+            android:name=".feature.forms.FormActivity"
+            android:theme="@style/UTheme.Translucent"
+            android:parentActivityName=".feature.home.HomeActivity"/>
+        <activity
             android:name=".feature.siecomp.SIECOMPActivity"
             android:parentActivityName=".feature.home.HomeActivity"
             android:theme="@style/UTheme.LightNav" />
@@ -108,7 +114,9 @@
         <activity
             android:name=".feature.profile.ProfileActivity"
             android:theme="@style/UTheme.StudentProfile" />
-        <activity android:name=".easter.twofoureight.Game2048Activity" />
+        <activity
+            android:name=".easter.twofoureight.Game2048Activity"
+            android:theme="@style/UTheme.NoInsets.Base"/>
         <activity
             android:name=".feature.reminders.RemindersActivity"
             android:parentActivityName=".feature.home.HomeActivity"
@@ -147,16 +155,28 @@
         <meta-data
             android:name="com.google.android.gms.ads.APPLICATION_ID"
             android:value="@string/admob_app_id" />
+        <meta-data
+            android:name="firebase_crashlytics_collection_enabled"
+            android:value="${crashlyticsEnabled}" />
+        <meta-data
+            android:name="com.google.android.geo.API_KEY"
+            android:value="@string/google_maps_key" />
 
         <provider
             android:name="androidx.core.content.FileProvider"
-            android:authorities="com.forcetower.uefs.fileprovider"
+            android:authorities="${applicationId}.fileprovider"
             android:exported="false"
             android:grantUriPermissions="true">
             <meta-data
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/file_provider_paths" />
         </provider>
+
+        <provider
+            android:name="androidx.work.impl.WorkManagerInitializer"
+            android:authorities="${applicationId}.workmanager-init"
+            tools:node="remove"
+            android:exported="false" />
 
         <receiver
             android:name=".architecture.receiver.OnUpgradeReceiver"
@@ -180,6 +200,30 @@
         <service
             android:name=".architecture.service.discipline.DisciplineDetailsLoaderService"
             android:exported="false" />
+
+        <service
+            android:name=".architecture.service.sync.SyncService"
+            android:exported="false"/>
+        
+        <receiver android:name=".architecture.widget.HomeClassWidget">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_home_class_provider" />
+        </receiver>
+
+        <receiver android:name=".architecture.widget.HomeClassWidgetSecondary">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_home_class_secondary_provider" />
+        </receiver>
 
         <uses-library
             android:name="org.apache.http.legacy"

@@ -2,7 +2,7 @@
  * This file is part of the UNES Open Source Project.
  * UNES is licensed under the GNU GPLv3.
  *
- * Copyright (c) 2019.  João Paulo Sena <joaopaulo761@gmail.com>
+ * Copyright (c) 2020. João Paulo Sena <joaopaulo761@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,12 +20,29 @@
 
 package com.forcetower.uefs.core.vm
 
+import androidx.lifecycle.LiveData
 import androidx.lifecycle.ViewModel
-import com.forcetower.uefs.core.storage.repository.CourseRepository
+import androidx.lifecycle.asLiveData
+import com.forcetower.uefs.core.model.unes.Course
+import com.forcetower.uefs.core.task.UCaseResult
+import com.forcetower.uefs.core.task.data
+import dagger.hilt.android.lifecycle.HiltViewModel
+import dev.forcetower.unes.usecases.courses.LoadCoursesUseCase
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 
+@HiltViewModel
 class CourseViewModel @Inject constructor(
-    private val repository: CourseRepository
+    private val loadCoursesUseCase: LoadCoursesUseCase
 ) : ViewModel() {
-    val courses by lazy { repository.getCourses() }
+
+    fun getCourses(): LiveData<List<Course>> {
+        return loadCoursesUseCase(Unit)
+            .filter { it is UCaseResult.Success }
+            .map { it.data }
+            .filterNotNull()
+            .asLiveData()
+    }
 }

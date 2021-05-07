@@ -2,7 +2,7 @@
  * This file is part of the UNES Open Source Project.
  * UNES is licensed under the GNU GPLv3.
  *
- * Copyright (c) 2019.  João Paulo Sena <joaopaulo761@gmail.com>
+ * Copyright (c) 2020. João Paulo Sena <joaopaulo761@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -23,38 +23,32 @@ package com.forcetower.uefs.feature.evaluation.rating
 import android.os.Bundle
 import android.view.View.GONE
 import android.view.View.VISIBLE
+import androidx.activity.viewModels
 import androidx.databinding.DataBindingUtil
-import androidx.fragment.app.Fragment
 import androidx.lifecycle.Observer
 import androidx.navigation.navArgs
+import com.forcetower.core.lifecycle.EventObserver
 import com.forcetower.uefs.R
 import com.forcetower.uefs.core.model.unes.Question
 import com.forcetower.uefs.core.storage.resource.Resource
-import com.forcetower.uefs.core.vm.EventObserver
-import com.forcetower.uefs.core.vm.UViewModelFactory
 import com.forcetower.uefs.databinding.ActivityEvaluationRatingBinding
 import com.forcetower.uefs.feature.shared.FragmentAdapter
 import com.forcetower.uefs.feature.shared.UActivity
-import com.forcetower.uefs.feature.shared.extensions.provideViewModel
-import dagger.android.DispatchingAndroidInjector
-import dagger.android.support.HasSupportFragmentInjector
-import javax.inject.Inject
+import com.forcetower.uefs.feature.themeswitcher.ThemeOverlayUtils
+import dagger.hilt.android.AndroidEntryPoint
 
-class RatingActivity : UActivity(), HasSupportFragmentInjector {
-    @Inject
-    lateinit var factory: UViewModelFactory
-    @Inject
-    lateinit var fragmentInjector: DispatchingAndroidInjector<Fragment>
-    private lateinit var viewModel: EvaluationRatingViewModel
+@AndroidEntryPoint
+class RatingActivity : UActivity() {
+    private val viewModel: EvaluationRatingViewModel by viewModels()
     private lateinit var binding: ActivityEvaluationRatingBinding
     private lateinit var adapter: FragmentAdapter
     private val args by navArgs<RatingActivityArgs>()
     private var currentData: List<Question>? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        ThemeOverlayUtils.applyThemeOverlays(this, intArrayOf(R.id.theme_feature_background_color))
         super.onCreate(savedInstanceState)
         binding = DataBindingUtil.setContentView(this, R.layout.activity_evaluation_rating)
-        viewModel = provideViewModel(factory)
         adapter = FragmentAdapter(supportFragmentManager)
         binding.viewPager.adapter = adapter
 
@@ -68,15 +62,18 @@ class RatingActivity : UActivity(), HasSupportFragmentInjector {
             viewModel.getQuestionsForDiscipline(code, department).observe(this, Observer { useResponse(it) })
         }
 
-        viewModel.nextQuestion.observe(this, EventObserver {
-            val position = binding.viewPager.currentItem
-            val size = currentData?.size ?: 0
-            if (position + 1 >= size) {
-                finish()
-            } else {
-                binding.viewPager.setCurrentItem(position + 1, true)
+        viewModel.nextQuestion.observe(
+            this,
+            EventObserver {
+                val position = binding.viewPager.currentItem
+                val size = currentData?.size ?: 0
+                if (position + 1 >= size) {
+                    finish()
+                } else {
+                    binding.viewPager.setCurrentItem(position + 1, true)
+                }
             }
-        })
+        )
     }
 
     private fun useResponse(resource: Resource<List<Question>>) {
@@ -98,5 +95,5 @@ class RatingActivity : UActivity(), HasSupportFragmentInjector {
         adapter.setItems(fragments)
     }
 
-    override fun supportFragmentInjector() = fragmentInjector
+    override fun shouldApplyThemeOverlay() = false
 }

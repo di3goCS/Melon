@@ -2,7 +2,7 @@
  * This file is part of the UNES Open Source Project.
  * UNES is licensed under the GNU GPLv3.
  *
- * Copyright (c) 2019.  João Paulo Sena <joaopaulo761@gmail.com>
+ * Copyright (c) 2020. João Paulo Sena <joaopaulo761@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -26,14 +26,21 @@ import androidx.room.Insert
 import androidx.room.OnConflictStrategy.REPLACE
 import androidx.room.Query
 import com.forcetower.uefs.core.model.unes.Course
+import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface CourseDao {
     @Insert(onConflict = REPLACE)
-    fun insert(courses: List<Course>)
+    suspend fun insert(courses: List<Course>)
 
     @Query("SELECT * FROM Course ORDER BY name")
-    fun selectAll(): LiveData<List<Course>>
+    fun selectAll(): Flow<List<Course>>
+
+    @Query("SELECT * FROM Course ORDER BY name")
+    suspend fun selectAllDirect(): List<Course>
+
+    @Query("SELECT COUNT(id) FROM Course")
+    suspend fun count(): Int
 
     @Query("SELECT * FROM Course WHERE id = :course")
     fun getCourse(course: Long): LiveData<Course?>

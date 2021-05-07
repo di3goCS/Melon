@@ -2,7 +2,7 @@
  * This file is part of the UNES Open Source Project.
  * UNES is licensed under the GNU GPLv3.
  *
- * Copyright (c) 2019.  João Paulo Sena <joaopaulo761@gmail.com>
+ * Copyright (c) 2020. João Paulo Sena <joaopaulo761@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -24,15 +24,18 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MediatorLiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.forcetower.core.lifecycle.Event
 import com.forcetower.uefs.R
 import com.forcetower.uefs.core.model.unes.AccessToken
 import com.forcetower.uefs.core.storage.repository.cloud.AuthRepository
 import com.forcetower.uefs.core.storage.resource.Resource
-import com.forcetower.uefs.core.storage.resource.Status
 import com.forcetower.uefs.feature.shared.extensions.setValueIfNew
-import timber.log.Timber
+import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+@HiltViewModel
 class UnesverseViewModel @Inject constructor(
     private val auth: AuthRepository
 ) : ViewModel() {
@@ -53,25 +56,15 @@ class UnesverseViewModel @Inject constructor(
     fun login() {
         if (_isLoggingIn.value == true) return
         _isLoggingIn.value = true
-        val source = auth.autoLogin()
-        _loggingIn.addSource(source) {
-            _loggingIn.value = it
-            Timber.d("The current login status: ${it.status}")
-            when {
-                it.status === Status.LOADING -> {
-                    _isLoggingIn.value = true
-                }
-                it.status === Status.ERROR -> {
-                    _loggingIn.removeSource(source)
-                    _loginMessenger.setValueIfNew(Event(R.string.failed_to_connect_to_unesverse))
-                    _isLoggingIn.value = false
-                }
-                else -> {
-                    _loggingIn.removeSource(source)
-                    _loginMessenger.setValueIfNew(Event(R.string.connected_to_the_unesverse))
-                    _isLoggingIn.value = false
-                }
+
+        viewModelScope.launch {
+            val token = auth.loginToService()
+            if (token != null) {
+                _loginMessenger.setValueIfNew(Event(R.string.connected_to_the_unesverse))
+            } else {
+                _loginMessenger.setValueIfNew(Event(R.string.failed_to_connect_to_unesverse))
             }
+            _isLoggingIn.value = false
         }
     }
 }

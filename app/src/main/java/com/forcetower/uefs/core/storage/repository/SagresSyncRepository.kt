@@ -2,7 +2,7 @@
  * This file is part of the UNES Open Source Project.
  * UNES is licensed under the GNU GPLv3.
  *
- * Copyright (c) 2019.  João Paulo Sena <joaopaulo761@gmail.com>
+ * Copyright (c) 2020. João Paulo Sena <joaopaulo761@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -26,12 +26,12 @@ import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.net.wifi.WifiManager
 import android.telephony.TelephonyManager
-import androidx.annotation.MainThread
 import androidx.annotation.WorkerThread
 import androidx.core.content.ContextCompat
-import com.crashlytics.android.Crashlytics
+import com.forcetower.core.getDynamicDataSourceFactory
 import com.forcetower.sagres.SagresNavigator
 import com.forcetower.sagres.database.model.SagresCalendar
+import com.forcetower.sagres.database.model.SagresCredential
 import com.forcetower.sagres.database.model.SagresDiscipline
 import com.forcetower.sagres.database.model.SagresDisciplineClassLocation
 import com.forcetower.sagres.database.model.SagresDisciplineGroup
@@ -60,17 +60,22 @@ import com.forcetower.uefs.core.model.unes.ServiceRequest
 import com.forcetower.uefs.core.model.unes.SyncRegistry
 import com.forcetower.uefs.core.model.unes.notify
 import com.forcetower.uefs.core.storage.database.UDatabase
-import com.forcetower.uefs.core.storage.network.APIService
 import com.forcetower.uefs.core.storage.network.UService
 import com.forcetower.uefs.core.storage.repository.cloud.AuthRepository
+import com.forcetower.uefs.core.util.LocationShrinker
 import com.forcetower.uefs.core.util.VersionUtils
 import com.forcetower.uefs.core.util.isStudentFromUEFS
 import com.forcetower.uefs.core.work.discipline.DisciplinesDetailsWorker
 import com.forcetower.uefs.core.work.hourglass.HourglassContributeWorker
 import com.forcetower.uefs.service.NotificationCreator
 import com.google.android.gms.tasks.Tasks
-import com.google.firebase.iid.FirebaseInstanceId
+import com.google.firebase.crashlytics.FirebaseCrashlytics
+import com.google.firebase.messaging.FirebaseMessaging
 import com.google.firebase.remoteconfig.FirebaseRemoteConfig
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 import org.jsoup.nodes.Document
 import timber.log.Timber
 import java.util.Calendar
@@ -86,21 +91,33 @@ class SagresSyncRepository @Inject constructor(
     private val authRepository: AuthRepository,
     private val adventureRepository: AdventureRepository,
     private val firebaseAuthRepository: FirebaseAuthRepository,
-    private val syncService: APIService,
     private val service: UService,
     private val remoteConfig: FirebaseRemoteConfig,
     private val preferences: SharedPreferences
 ) {
+    private val mutex = Mutex()
+
+    private suspend fun findAndMatch() {
+        val aeri = getDynamicDataSourceFactory(context, "com.forcetower.uefs.aeri.domain.AERIDataSourceFactoryProvider")
+        aeri?.create()?.run {
+            update()
+            getNotifyMessages().forEach {
+                NotificationCreator.showSimpleNotification(context, it.title, it.content)
+            }
+        }
+    }
 
     @WorkerThread
-    fun performSync(executor: String) {
+    suspend fun performSync(executor: String, gToken: String? = null) = withContext(Dispatchers.IO) {
         val registry = createRegistry(executor)
         val access = database.accessDao().getAccessDirect()
         access ?: Timber.d("Access is null, sync will not continue")
         if (access != null) {
-            Crashlytics.setUserIdentifier(access.username)
+            FirebaseCrashlytics.getInstance().setUserId(access.username)
             // Only one sync may be active at a time
-            synchronized(S_LOCK) { execute(access, registry, executor) }
+            mutex.withLock {
+                execute(access, registry, executor, gToken)
+            }
         } else {
             registry.completed = true
             registry.error = -1
@@ -120,14 +137,15 @@ class SagresSyncRepository @Inject constructor(
                 val wifi = capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)
                 val network = if (wifi) {
                     val manager = context.getSystemService(WifiManager::class.java)
-                    manager.connectionInfo.ssid
+                    manager?.connectionInfo?.ssid ?: "Unknown"
                 } else {
                     val manager = context.getSystemService(TelephonyManager::class.java)
-                    manager.simOperatorName
+                    manager?.simOperatorName ?: "Operator"
                 }
                 Timber.d("Is on Wifi? $wifi. Network name: $network")
                 SyncRegistry(
-                    executor = executor, network = network,
+                    executor = executor,
+                    network = network,
                     networkType = if (wifi) NetworkType.WIFI.ordinal else NetworkType.CELLULAR.ordinal
                 )
             } else {
@@ -147,58 +165,55 @@ class SagresSyncRepository @Inject constructor(
     }
 
     @WorkerThread
-    private fun execute(access: Access, registry: SyncRegistry, executor: String) {
+    private suspend fun execute(access: Access, registry: SyncRegistry, executor: String, gToken: String?) {
         val uid = database.syncRegistryDao().insert(registry)
         val calendar = Calendar.getInstance()
         val today = calendar.get(Calendar.DAY_OF_MONTH)
         registry.uid = uid
+        SagresNavigator.instance.putCredentials(SagresCredential(access.username, access.password, SagresNavigator.instance.getSelectedInstitution()))
 
+        // Internal checks for canceling auto sync
+        // this was useful to avoid unes from ddos'ing the website.
+        // they said unes was doing it anyways, so here is a deleted useless piece of code
+        // you welcome
         if (!Constants.EXECUTOR_WHITELIST.contains(executor.toLowerCase(Locale.getDefault()))) {
-            try {
-                val call = syncService.getUpdate()
-                val response = call.execute()
-                if (response.isSuccessful) {
-                    val body = response.body()
-                    if (body != null && !body.manager) {
-                        registry.completed = true
-                        registry.error = -4
-                        registry.success = false
-                        registry.message = "Atualização negada"
-                        registry.end = System.currentTimeMillis()
-                        database.syncRegistryDao().update(registry)
-                        return
-                    }
-                }
-            } catch (t: Throwable) {
-                Timber.e(t, "An error just happened... It will complete anyways")
-            }
+            Timber.d("There was a time where this would cause sync to be aborted if server.. But i don't care anymore")
         }
+
+        try {
+            findAndMatch()
+        } catch (t: Throwable) { }
 
         database.gradesDao().markAllNotified()
         database.messageDao().setAllNotified()
         database.classMaterialDao().markAllNotified()
-        val homeDoc = login(access)
+
+        val homeDoc = when {
+            preferences.isStudentFromUEFS() && gToken == null -> initialPage()
+            !preferences.isStudentFromUEFS() || gToken != null -> login(access, gToken)
+            else -> null
+        }
         val score = SagresBasicParser.getScore(homeDoc)
         Timber.d("Login Completed. Score Parsed: $score")
+
+        // Since stuff is just broken....
         if (homeDoc == null) {
             registry.completed = true
             registry.error = -2
             registry.success = false
             registry.message = "Login falhou"
-            registry.end = System.currentTimeMillis()
-            database.syncRegistryDao().update(registry)
-            return
+        } else {
+            defineSchedule(SagresScheduleParser.getSchedule(homeDoc))
+            defineMessages(SagresMessageParser.getMessages(homeDoc))
         }
 
-        defineSchedule(SagresScheduleParser.getSchedule(homeDoc))
-        defineMessages(SagresMessageParser.getMessages(homeDoc))
-
-        val person = me(score, homeDoc, access)
+        val person = me(score, access)
+        Timber.d("The person from me is ${person?.name} ${person?.isMocked}")
         if (person == null) {
             registry.completed = true
             registry.error = -3
             registry.success = false
-            registry.message = "Busca de usuário falhou no Sagres"
+            registry.message = "The dream is over"
             registry.end = System.currentTimeMillis()
             database.syncRegistryDao().update(registry)
             return
@@ -210,18 +225,31 @@ class SagresSyncRepository @Inject constructor(
                 firebaseAuthRepository.loginToFirebase(person, access, reconnect)
                 preferences.edit().putBoolean("firebase_reconnect_update", false).apply()
             } catch (t: Throwable) {
-                Crashlytics.logException(t)
+                Timber.e(t)
             }
         }
 
         var result = 0
         var skipped = 0
 
-        if (!messages(null))
-
         if (!person.isMocked) {
-            if (!messages(person.id)) result += 1 shl 1
+            Timber.d("I guess the person is not a mocked version on it")
+            if (!messages(person.id)) {
+                if (homeDoc != null && !messages(null)) result += 1 shl 1
+            }
             if (!semesters(person.id)) result += 1 shl 2
+            if (homeDoc == null) {
+                registry.completed = true
+                registry.error = 10
+                registry.success = true
+                registry.message = "Partial sync"
+                registry.executor = "${registry.executor}-Parc"
+                registry.end = System.currentTimeMillis()
+                database.syncRegistryDao().update(registry)
+                return
+            }
+        } else {
+            if (!messages(null)) result += 1 shl 1
         }
 
         val dailyDisciplines = preferences.getString("stg_daily_discipline_sync", "2")?.toIntOrNull() ?: 2
@@ -238,7 +266,7 @@ class SagresSyncRepository @Inject constructor(
 
         val shouldDisciplineSync =
             ((actualDailyCount < dailyDisciplines) || (dailyDisciplines == -1)) &&
-            (currentDailyHour >= nextHour)
+                (currentDailyHour >= nextHour)
 
         Timber.d("Discipline Sync Dump >> will sync now $shouldDisciplineSync")
         Timber.d("Dailies $dailyDisciplines")
@@ -278,10 +306,11 @@ class SagresSyncRepository @Inject constructor(
         }
 
         if (uefsStudent) {
-            if (!preferences.getBoolean("sent_hourglass_testing_data_0.0.1", false) &&
-                    authRepository.getAccessTokenDirect() != null) {
+            if (!preferences.getBoolean("sent_hourglass_testing_data_0.0.2", false) &&
+                authRepository.getAccessTokenDirect() != null
+            ) {
                 HourglassContributeWorker.createWorker(context)
-                preferences.edit().putBoolean("sent_hourglass_testing_data_0.0.1", true).apply()
+                preferences.edit().putBoolean("sent_hourglass_testing_data_0.0.2", true).apply()
             }
         }
 
@@ -290,15 +319,15 @@ class SagresSyncRepository @Inject constructor(
             if (day != today) {
                 adventureRepository.performCheckAchievements(HashMap())
 
-                val task = FirebaseInstanceId.getInstance().instanceId
+                val task = FirebaseMessaging.getInstance().token
                 val value = Tasks.await(task)
-                onNewToken(value.token)
+                onNewToken(value)
 
                 preferences.edit().putInt("sync_daily_update", today).apply()
             }
             createNewVersionNotification()
         } catch (t: Throwable) {
-            Crashlytics.logException(t)
+            Timber.e(t)
         }
 
         registry.completed = true
@@ -351,8 +380,17 @@ class SagresSyncRepository @Inject constructor(
         }
     }
 
-    fun login(access: Access): Document? {
-        val login = SagresNavigator.instance.login(access.username, access.password)
+    private fun initialPage(): Document? {
+        val document = SagresNavigator.instance.startPage()
+        when (document.status) {
+            Status.SUCCESS -> return document.document
+            else -> produceErrorMessage(document)
+        }
+        return null
+    }
+
+    fun login(access: Access, gToken: String?): Document? {
+        val login = SagresNavigator.instance.login(access.username, access.password, gToken)
         when (login.status) {
             Status.SUCCESS -> {
                 return login.document
@@ -369,18 +407,23 @@ class SagresSyncRepository @Inject constructor(
 
     private fun onInvalidLogin() {
         val access = database.accessDao().getAccessDirect()
-        if (access != null && access.valid) {
+        if (
+            access != null &&
+            access.valid &&
+            com.forcetower.sagres.Constants.getParameter("REQUIRES_CAPTCHA") != "true"
+        ) {
             database.accessDao().setAccessValidation(false)
             NotificationCreator.showInvalidAccessNotification(context)
         }
     }
 
-    private fun me(score: Double, document: Document, access: Access): SagresPerson? {
+    private fun me(score: Double, access: Access): SagresPerson? {
         val username = access.username
         if (username.contains("@")) {
-            return continueWithHtml(document, username, score)
+            return continueWithHtml(username, score)
         } else {
             val me = SagresNavigator.instance.me()
+            Timber.d("Me response: ${me.status}")
             when (me.status) {
                 Status.SUCCESS -> {
                     val person = me.person
@@ -392,8 +435,8 @@ class SagresSyncRepository @Inject constructor(
                         Timber.e("Page loaded but API returned invalid types")
                     }
                 }
-                Status.RESPONSE_FAILED -> {
-                    return continueWithHtml(document, username, score)
+                Status.RESPONSE_FAILED, Status.NETWORK_ERROR -> {
+                    return continueWithHtml(username, score)
                 }
                 else -> produceErrorMessage(me)
             }
@@ -401,8 +444,9 @@ class SagresSyncRepository @Inject constructor(
         return null
     }
 
-    private fun continueWithHtml(document: Document, username: String, score: Double): SagresPerson {
-        val name = SagresBasicParser.getName(document) ?: username
+    private fun continueWithHtml(username: String, score: Double): SagresPerson? {
+        val start = SagresNavigator.instance.startPage().document ?: return null
+        val name = SagresBasicParser.getName(start) ?: username
         val person = SagresPerson(username.hashCode().toLong(), name, name, "00000000000", username).apply { isMocked = true }
         database.profileDao().insert(person, score)
         return person
@@ -410,14 +454,18 @@ class SagresSyncRepository @Inject constructor(
 
     @WorkerThread
     private fun messages(userId: Long?): Boolean {
+        Timber.d("Messages was invoked using $userId")
         val messages = if (userId != null)
             SagresNavigator.instance.messages(userId)
         else
             SagresNavigator.instance.messagesHtml()
 
+        Timber.d("Did receive a valid list? ${messages.messages != null}, ${messages.status}")
+
         return when (messages.status) {
             Status.SUCCESS -> {
                 val values = messages.messages?.map { Message.fromMessage(it, false) } ?: emptyList()
+                Timber.d("Messages mapped: ${values.size}")
                 database.messageDao().insertIgnoring(values)
                 messagesNotifications()
                 Timber.d("Messages completed. Messages size is ${values.size}")
@@ -500,7 +548,7 @@ class SagresSyncRepository @Inject constructor(
     @WorkerThread
     private fun materialsNotifications() {
         database.classMaterialDao().run {
-            getAllUnnotified().filter { it.group() != null }.forEach {
+            getAllUnnotified().forEach {
                 NotificationCreator.showMaterialPostedNotification(context, it)
             }
             markAllNotified()
@@ -618,7 +666,14 @@ class SagresSyncRepository @Inject constructor(
     @WorkerThread
     private fun defineSchedule(locations: List<SagresDisciplineClassLocation>?) {
         locations ?: return
-        database.classLocationDao().putSchedule(locations)
+        val ordering = preferences.getBoolean("stg_semester_deterministic_ordering", true)
+        val shrinkSchedule = preferences.getBoolean("stg_schedule_shrinking", true)
+        if (shrinkSchedule) {
+            val shrink = LocationShrinker.shrink(locations)
+            database.classLocationDao().putSchedule(shrink, ordering)
+        } else {
+            database.classLocationDao().putSchedule(locations, ordering)
+        }
     }
 
     @WorkerThread
@@ -653,12 +708,13 @@ class SagresSyncRepository @Inject constructor(
     }
 
     private fun produceErrorMessage(callback: BaseCallback<*>) {
+        Timber.d("Is throwable invalid? ${callback.throwable == null}")
+        callback.throwable?.printStackTrace()
         Timber.e("Failed executing with status ${callback.status} and throwable message [${callback.throwable?.message}]")
     }
 
-    @MainThread
-    fun asyncSync() {
-        executors.networkIO().execute { performSync("Manual") }
+    suspend fun asyncSync(gToken: String?) {
+        performSync("Manual", gToken)
     }
 
     companion object {

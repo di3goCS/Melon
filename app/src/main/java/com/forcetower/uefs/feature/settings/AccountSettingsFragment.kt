@@ -2,7 +2,7 @@
  * This file is part of the UNES Open Source Project.
  * UNES is licensed under the GNU GPLv3.
  *
- * Copyright (c) 2019.  João Paulo Sena <joaopaulo761@gmail.com>
+ * Copyright (c) 2020. João Paulo Sena <joaopaulo761@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -23,17 +23,14 @@ package com.forcetower.uefs.feature.settings
 import android.content.SharedPreferences
 import android.os.Bundle
 import android.widget.Toast
+import androidx.fragment.app.activityViewModels
 import androidx.preference.PreferenceFragmentCompat
 import com.forcetower.uefs.R
-import com.forcetower.uefs.core.injection.Injectable
-import com.forcetower.uefs.core.vm.UViewModelFactory
-import com.forcetower.uefs.feature.shared.extensions.provideActivityViewModel
-import javax.inject.Inject
+import dagger.hilt.android.AndroidEntryPoint
 
-class AccountSettingsFragment : PreferenceFragmentCompat(), Injectable {
-    @Inject
-    lateinit var factory: UViewModelFactory
-    lateinit var viewModel: SettingsViewModel
+@AndroidEntryPoint
+class AccountSettingsFragment : PreferenceFragmentCompat() {
+    private val viewModel: SettingsViewModel by activityViewModels()
 
     private val listener = SharedPreferences.OnSharedPreferenceChangeListener { shared, key ->
         onPreferenceChange(shared, key)
@@ -41,7 +38,6 @@ class AccountSettingsFragment : PreferenceFragmentCompat(), Injectable {
 
     override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {
         setPreferencesFromResource(R.xml.settings_account, rootKey)
-        viewModel = provideActivityViewModel(factory)
     }
 
     private fun onPreferenceChange(preference: SharedPreferences, key: String) {

@@ -2,7 +2,7 @@
  * This file is part of the UNES Open Source Project.
  * UNES is licensed under the GNU GPLv3.
  *
- * Copyright (c) 2019.  João Paulo Sena <joaopaulo761@gmail.com>
+ * Copyright (c) 2020. João Paulo Sena <joaopaulo761@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -23,40 +23,33 @@ package com.forcetower.uefs.feature.demand
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
+import androidx.activity.viewModels
 import androidx.databinding.DataBindingUtil
-import androidx.fragment.app.Fragment
+import com.forcetower.core.lifecycle.EventObserver
 import com.forcetower.uefs.R
-import com.forcetower.uefs.core.vm.EventObserver
-import com.forcetower.uefs.core.vm.UViewModelFactory
 import com.forcetower.uefs.databinding.ActivityDemandBinding
 import com.forcetower.uefs.feature.shared.NavigationFragment
 import com.forcetower.uefs.feature.shared.UActivity
 import com.forcetower.uefs.feature.shared.extensions.config
 import com.forcetower.uefs.feature.shared.extensions.inTransaction
-import com.forcetower.uefs.feature.shared.extensions.provideViewModel
 import com.google.android.material.snackbar.Snackbar
 import com.google.firebase.analytics.FirebaseAnalytics
-import dagger.android.DispatchingAndroidInjector
-import dagger.android.support.HasSupportFragmentInjector
+import dagger.hilt.android.AndroidEntryPoint
 import timber.log.Timber
 import javax.inject.Inject
 
-class DemandActivity : UActivity(), HasSupportFragmentInjector {
-    @Inject
-    lateinit var fragmentInjector: DispatchingAndroidInjector<Fragment>
-    @Inject
-    lateinit var factory: UViewModelFactory
+@AndroidEntryPoint
+class DemandActivity : UActivity() {
     @Inject
     lateinit var analytics: FirebaseAnalytics
 
     private lateinit var binding: ActivityDemandBinding
     private lateinit var currentFragment: NavigationFragment
-    private lateinit var viewModel: DemandViewModel
+    private val viewModel: DemandViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = DataBindingUtil.setContentView(this, R.layout.activity_demand)
-        viewModel = provideViewModel(factory)
 
         if (savedInstanceState == null) {
             supportFragmentManager.inTransaction {
@@ -70,17 +63,15 @@ class DemandActivity : UActivity(), HasSupportFragmentInjector {
         viewModel.snackbarMessage.observe(this, EventObserver { showSnack(it) })
     }
 
-    override fun supportFragmentInjector() = fragmentInjector
-
     override fun onBackPressed() {
         if (!::currentFragment.isInitialized || !currentFragment.onBackPressed()) {
             super.onBackPressed()
         }
     }
 
-    override fun showSnack(string: String, long: Boolean) {
+    override fun showSnack(string: String, duration: Int) {
         Timber.d("Show snack called on activity")
-        val snack = Snackbar.make(binding.snack, string, if (long) Snackbar.LENGTH_LONG else Snackbar.LENGTH_SHORT)
+        val snack = Snackbar.make(binding.snack, string, duration)
         snack.config(pxElevation = 8)
         snack.show()
     }

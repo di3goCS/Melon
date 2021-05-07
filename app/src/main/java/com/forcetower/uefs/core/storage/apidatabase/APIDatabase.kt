@@ -2,7 +2,7 @@
  * This file is part of the UNES Open Source Project.
  * UNES is licensed under the GNU GPLv3.
  *
- * Copyright (c) 2019.  João Paulo Sena <joaopaulo761@gmail.com>
+ * Copyright (c) 2020. João Paulo Sena <joaopaulo761@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -27,10 +27,14 @@ import com.forcetower.uefs.core.model.api.UTeacher
 import com.forcetower.uefs.core.storage.apidatabase.dao.DisciplineDao
 import com.forcetower.uefs.core.storage.apidatabase.dao.TeacherDao
 
-@Database(entities = [
-    UDiscipline::class,
-    UTeacher::class
-], version = 1, exportSchema = true)
+@Database(
+    entities = [
+        UDiscipline::class,
+        UTeacher::class
+    ],
+    version = 1,
+    exportSchema = true
+)
 abstract class APIDatabase : RoomDatabase() {
     abstract fun disciplineDao(): DisciplineDao
     abstract fun teacherDao(): TeacherDao

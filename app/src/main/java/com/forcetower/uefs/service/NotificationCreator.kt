@@ -2,7 +2,7 @@
  * This file is part of the UNES Open Source Project.
  * UNES is licensed under the GNU GPLv3.
  *
- * Copyright (c) 2019.  João Paulo Sena <joaopaulo761@gmail.com>
+ * Copyright (c) 2020. João Paulo Sena <joaopaulo761@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -35,11 +35,13 @@ import com.forcetower.uefs.GlideApp
 import com.forcetower.uefs.R
 import com.forcetower.uefs.core.constants.Constants
 import com.forcetower.uefs.core.model.bigtray.BigTrayData
+import com.forcetower.uefs.core.model.unes.ClassAbsence
 import com.forcetower.uefs.core.model.unes.ClassGroup
 import com.forcetower.uefs.core.model.unes.Message
 import com.forcetower.uefs.core.model.unes.ServiceRequest
-import com.forcetower.uefs.core.storage.database.accessors.ClassMaterialWithClass
-import com.forcetower.uefs.core.storage.database.accessors.GradeWithClassStudent
+import com.forcetower.uefs.core.storage.database.aggregation.ClassAbsenceWithClass
+import com.forcetower.uefs.core.storage.database.aggregation.ClassMaterialWithClass
+import com.forcetower.uefs.core.storage.database.aggregation.GradeWithClassStudent
 import com.forcetower.uefs.core.util.VersionUtils
 import com.forcetower.uefs.feature.disciplines.disciplinedetail.DisciplineDetailsActivity
 import com.forcetower.uefs.feature.home.HomeActivity
@@ -83,7 +85,7 @@ object NotificationCreator {
             return
         }
 
-        val discipline = grade.clazz().clazz.singleDiscipline().name
+        val discipline = grade.clazz.discipline.name
         val message = context.getString(R.string.notification_grade_created, grade.grade.name, discipline)
         val builder = notificationBuilder(context, NotificationHelper.CHANNEL_GRADES_CREATED_ID)
             .setContentTitle(context.getString(R.string.notification_grade_created_title))
@@ -101,7 +103,7 @@ object NotificationCreator {
             return
         }
 
-        val discipline = grade.clazz().clazz.singleDiscipline().name
+        val discipline = grade.clazz.discipline.name
         val message = context.getString(R.string.notification_grade_changed, grade.grade.name, discipline)
         val builder = notificationBuilder(context, NotificationHelper.CHANNEL_GRADES_VALUE_CHANGED_ID)
             .setContentTitle(context.getString(R.string.notification_grade_changed_title))
@@ -114,12 +116,43 @@ object NotificationCreator {
         showNotification(context, grade.grade.uid, builder)
     }
 
+    fun showAbsenceNotification(absence: ClassAbsence, context: Context, created: Boolean) {
+        if (!shouldShowNotification("stg_ntf_absence", context)) {
+            return
+        }
+
+        val channel = if (created)
+            NotificationHelper.CHANNEL_ABSENCE_CREATE_ID
+        else
+            NotificationHelper.CHANNEL_ABSENCE_REMOVE_ID
+
+        val message = if (created)
+            context.getString(R.string.notification_absence_posted, absence.description.toTitleCase())
+        else
+            context.getString(R.string.notification_absence_deleted, absence.description.toTitleCase())
+
+        val titleRes = if (created)
+            R.string.notification_absence_posted_title
+        else
+            R.string.notification_absence_removed_title
+
+        val builder = notificationBuilder(context, channel)
+            .setContentTitle(context.getString(titleRes))
+            .setContentText(message)
+            .setContentIntent(createOpenIntent(context))
+            .setColor(ContextCompat.getColor(context, R.color.dis_07))
+            .setStyle(createBigText(message))
+
+        addOptions(context, builder)
+        showNotification(context, 1000 + absence.uid, builder)
+    }
+
     fun showSagresDateGradesNotification(grade: GradeWithClassStudent, context: Context) {
         if (!shouldShowNotification("stg_ntf_grade_date", context, false)) {
             return
         }
 
-        val discipline = grade.clazz().clazz.singleDiscipline().name
+        val discipline = grade.clazz.discipline.name
         val message = context.getString(R.string.notification_grade_date_change, grade.grade.name, discipline)
         val builder = notificationBuilder(context, NotificationHelper.CHANNEL_GRADES_CREATED_ID)
             .setContentTitle(context.getString(R.string.notification_grade_date_change_title))
@@ -138,16 +171,12 @@ object NotificationCreator {
         }
 
         val spoiler = getPreferences(context).getString("stg_ntf_grade_spoiler", "1")?.toIntOrNull() ?: 1
-        val discipline = grade.clazz().clazz.singleDiscipline().name
+        val discipline = grade.clazz.discipline.name
         Timber.d("Spoiler level: $spoiler")
 
         val message = when (spoiler) {
             1 -> {
-                val value = grade.grade.grade.trim()
-                    .replace(",", ".")
-                    .replace("-", "")
-                    .replace("*", "")
-                    .toDoubleOrNull()
+                val value = grade.grade.gradeDouble()
                 Timber.d("Level 1 spoiler value: $value")
                 if (value == null) context.getString(R.string.notification_grade_posted_message_lv_0, grade.grade.name, discipline)
                 else when (value) {
@@ -193,7 +222,13 @@ object NotificationCreator {
 
     fun showServiceMessageNotification(context: Context, id: Long, title: String, description: String, image: String?) {
         val builder = showDefaultImageNotification(context, NotificationHelper.CHANNEL_GENERAL_REMOTE_ID, title, description, image)
-        builder.setContentIntent(createUNESMessagesIntent(context))
+        builder.setContentIntent(createUNESMessagesIntent(context, 1))
+        showNotification(context, id, builder)
+    }
+
+    fun showAERIMessageNotification(context: Context, id: Long, title: String, description: String, image: String?) {
+        val builder = showDefaultImageNotification(context, NotificationHelper.CHANNEL_GENERAL_REMOTE_ID, title, description, image)
+        builder.setContentIntent(createUNESMessagesIntent(context, 2))
         showNotification(context, id, builder)
     }
 
@@ -202,7 +237,7 @@ object NotificationCreator {
         val message = context.getString(R.string.access_invalidated_notification_message)
 
         val builder = showDefaultImageNotification(context, NotificationHelper.CHANNEL_GENERAL_WARNINGS_ID, title, message, null)
-                .setColor(ContextCompat.getColor(context, R.color.red))
+            .setColor(ContextCompat.getColor(context, R.color.red))
         showNotification(context, message.hashCode().toLong(), builder)
     }
 
@@ -259,18 +294,18 @@ object NotificationCreator {
 
     fun disciplineDetailsLoadNotification(context: Context): NotificationCompat.Builder {
         return notificationBuilder(context, NotificationHelper.CHANNEL_GENERAL_COMMON_LOW_ID, false)
-                .setOngoing(true)
-                .setContentTitle(context.getString(R.string.downloading_discipline_details))
-                .setPriority(NotificationManagerCompat.IMPORTANCE_LOW)
-                .setColor(ContextCompat.getColor(context, R.color.blue_accent))
+            .setOngoing(true)
+            .setContentTitle(context.getString(R.string.downloading_discipline_details))
+            .setPriority(NotificationManagerCompat.IMPORTANCE_LOW)
+            .setColor(ContextCompat.getColor(context, R.color.blue_accent))
     }
 
     fun showDemandOpenNotification(context: Context) {
         val builder = notificationBuilder(context, NotificationHelper.CHANNEL_GENERAL_WARNINGS_ID, true)
-                .setContentTitle(context.getString(R.string.demand_open_title))
-                .setContentText(context.getString(R.string.demand_open_text))
-                .setColor(ContextCompat.getColor(context, R.color.teal))
-                .setContentIntent(createDemandIntent(context))
+            .setContentTitle(context.getString(R.string.demand_open_title))
+            .setContentText(context.getString(R.string.demand_open_text))
+            .setColor(ContextCompat.getColor(context, R.color.teal))
+            .setContentIntent(createDemandIntent(context))
 
         addOptions(context, builder)
         showNotification(context, 7690, builder)
@@ -278,10 +313,10 @@ object NotificationCreator {
 
     fun createCompletedDisciplineLoadNotification(context: Context) {
         val builder = notificationBuilder(context, NotificationHelper.CHANNEL_GENERAL_WARNINGS_ID, true)
-                .setContentTitle(context.getString(R.string.discipline_load_all_completed))
-                .setContentText(context.getString(R.string.discipline_load_all_completed_info))
-                .setColor(ContextCompat.getColor(context, R.color.blue_accent))
-                // .setContentIntent(createHourglassIntent(context))
+            .setContentTitle(context.getString(R.string.discipline_load_all_completed))
+            .setContentText(context.getString(R.string.discipline_load_all_completed_info))
+            .setColor(ContextCompat.getColor(context, R.color.blue_accent))
+        // .setContentIntent(createHourglassIntent(context))
 
         addOptions(context, builder)
         showNotification(context, 7569, builder)
@@ -289,9 +324,9 @@ object NotificationCreator {
 
     fun createFailedWarningNotification(context: Context, title: String, message: String) {
         val builder = notificationBuilder(context, NotificationHelper.CHANNEL_GENERAL_WARNINGS_ID, true)
-                .setContentTitle(title)
-                .setContentText(message)
-                .setColor(ContextCompat.getColor(context, R.color.blue_accent))
+            .setContentTitle(title)
+            .setContentText(message)
+            .setColor(ContextCompat.getColor(context, R.color.blue_accent))
 
         addOptions(context, builder)
         showNotification(context, 7570, builder)
@@ -313,10 +348,10 @@ object NotificationCreator {
         }
 
         val builder = notificationBuilder(context, channel)
-                .setContentTitle(title)
-                .setContentText(message)
-                .setColor(ContextCompat.getColor(context, R.color.teal))
-                .setContentIntent(createDirectionsIntent(context, HomeActivity.EXTRA_REQUEST_SERVICE_DIRECTION))
+            .setContentTitle(title)
+            .setContentText(message)
+            .setColor(ContextCompat.getColor(context, R.color.teal))
+            .setContentIntent(createDirectionsIntent(context, HomeActivity.EXTRA_REQUEST_SERVICE_DIRECTION))
 
         addOptions(context, builder)
         showNotification(context, service.uid + message.hashCode(), builder)
@@ -324,32 +359,61 @@ object NotificationCreator {
 
     fun showMaterialPostedNotification(context: Context, it: ClassMaterialWithClass) {
         if (!shouldShowNotification("stg_ntf_material_posted", context)) return
-        val discipline = it.group()?.clazz()?.discipline()?.name ?: context.getString(R.string.undefined)
+        val discipline = it.group.classData.discipline.name
         val title = it.material.name
         val content = context.getString(R.string.material_posted_ntf_content, title, discipline)
         val builder = notificationBuilder(context, NotificationHelper.CHANNEL_DISCIPLINE_MATERIAL_POSTED)
-                .setContentTitle(context.getString(R.string.material_posted_ntf_title))
-                .setContentText(content)
-                .setStyle(createBigText(content))
-                .setColor(ContextCompat.getColor(context, R.color.yellow_pr_dark))
-                .setContentIntent(createDisciplineDetailsIntent(context, it.group()?.group))
+            .setContentTitle(context.getString(R.string.material_posted_ntf_title))
+            .setContentText(content)
+            .setStyle(createBigText(content))
+            .setColor(ContextCompat.getColor(context, R.color.yellow_pr_dark))
+            .setContentIntent(createDisciplineDetailsIntent(context, it.group.group))
 
         addOptions(context, builder)
         showNotification(context, it.material.uid, builder)
     }
 
-    fun notificationBuilder(context: Context, groupId: String, autoCancel: Boolean = true): NotificationCompat.Builder {
+    fun showAbsenceNotification(context: Context, data: ClassAbsenceWithClass, created: Boolean) {
+        val value = if (created) "stg_ntf_absence_created" else "stg_ntf_absence_removed"
+        val contentId = if (created) R.string.absence_created_ntf_content else R.string.absence_removed_ntf_content
+        if (!shouldShowNotification(value, context)) return
+        val discipline = data.clazz.discipline.name
+        val content = context.getString(contentId, discipline)
+        val builder = notificationBuilder(context, NotificationHelper.CHANNEL_DISCIPLINE_MATERIAL_POSTED)
+            .setContentTitle(context.getString(R.string.material_posted_ntf_title))
+            .setContentText(content)
+            .setStyle(createBigText(content))
+            .setColor(ContextCompat.getColor(context, R.color.yellow_pr_dark))
+            .setContentIntent(createOpenIntent(context))
+
+        addOptions(context, builder)
+        showNotification(context, data.absence.uid, builder)
+    }
+
+    fun createCookieSyncServiceNotification(context: Context, close: PendingIntent): Notification {
+        return notificationBuilder(context, NotificationHelper.CHANNEL_GENERAL_SYNC_SERVICE_FOREGROUND, false)
+            .setContentTitle(context.getString(R.string.label_service_sync_foreground))
+            .setContentText(context.getString(R.string.label_service_sync_foreground_desc))
+            // .addAction(R.drawable.ic_close_black_24dp, context.getString(R.string.ru_close_notification), close)
+            .setOnlyAlertOnce(true)
+            .setContentIntent(createOpenIntent(context))
+            .setPriority(NotificationManagerCompat.IMPORTANCE_LOW)
+            .setColor(ContextCompat.getColor(context, R.color.blue_accent))
+            .build()
+    }
+
+    private fun notificationBuilder(context: Context, groupId: String, autoCancel: Boolean = true): NotificationCompat.Builder {
         val builder = NotificationCompat.Builder(context, groupId)
         builder.setAutoCancel(autoCancel)
         builder.setSmallIcon(R.drawable.ic_unes_colored)
         return builder
     }
 
-    fun createBigText(message: String): NotificationCompat.Style {
+    private fun createBigText(message: String): NotificationCompat.Style {
         return NotificationCompat.BigTextStyle().bigText(message)
     }
 
-    fun createBigImage(context: Context, image: String): NotificationCompat.Style? {
+    private fun createBigImage(context: Context, image: String): NotificationCompat.Style? {
         return try {
             val bitmap = GlideApp.with(context).asBitmap().load(image).submit().get()
             NotificationCompat.BigPictureStyle().bigPicture(bitmap)
@@ -362,6 +426,7 @@ object NotificationCreator {
     fun showNotification(context: Context, id: Long, builder: NotificationCompat.Builder): Boolean {
         val notificationManager = ContextCompat.getSystemService(context, NotificationManager::class.java)
         notificationManager?.notify(id.toInt(), builder.build())
+        Timber.d("Notification manager ${notificationManager != null}")
         return true
     }
 
@@ -399,10 +464,10 @@ object NotificationCreator {
             .getPendingIntent(0, PendingIntent.FLAG_UPDATE_CURRENT)
     }
 
-    private fun createUNESMessagesIntent(ctx: Context): PendingIntent {
+    private fun createUNESMessagesIntent(ctx: Context, fragmentIndex: Int): PendingIntent {
         val intent = Intent(ctx, HomeActivity::class.java).apply {
             putExtra(HomeActivity.EXTRA_FRAGMENT_DIRECTIONS, HomeActivity.EXTRA_MESSAGES_SAGRES_DIRECTION)
-            putExtra(MessagesFragment.EXTRA_MESSAGES_FLAG, true)
+            putExtra(MessagesFragment.EXTRA_MESSAGES_FLAG, fragmentIndex)
         }
 
         return TaskStackBuilder.create(ctx)
@@ -417,9 +482,9 @@ object NotificationCreator {
         }
 
         return TaskStackBuilder.create(ctx)
-                .addParentStack(HomeActivity::class.java)
-                .addNextIntent(intent)
-                .getPendingIntent(0, PendingIntent.FLAG_UPDATE_CURRENT)
+            .addParentStack(HomeActivity::class.java)
+            .addNextIntent(intent)
+            .getPendingIntent(0, PendingIntent.FLAG_UPDATE_CURRENT)
     }
 
     private fun createDemandIntent(ctx: Context): PendingIntent {
@@ -428,9 +493,9 @@ object NotificationCreator {
         }
 
         return TaskStackBuilder.create(ctx)
-                .addParentStack(HomeActivity::class.java)
-                .addNextIntent(intent)
-                .getPendingIntent(0, PendingIntent.FLAG_UPDATE_CURRENT)
+            .addParentStack(HomeActivity::class.java)
+            .addNextIntent(intent)
+            .getPendingIntent(0, PendingIntent.FLAG_UPDATE_CURRENT)
     }
 
     private fun createDisciplineDetailsIntent(context: Context, classGroup: ClassGroup?): PendingIntent? {
@@ -442,9 +507,9 @@ object NotificationCreator {
         }
 
         return TaskStackBuilder.create(context)
-                .addParentStack(DisciplineDetailsActivity::class.java)
-                .addNextIntent(intent)
-                .getPendingIntent(0, PendingIntent.FLAG_UPDATE_CURRENT)
+            .addParentStack(DisciplineDetailsActivity::class.java)
+            .addNextIntent(intent)
+            .getPendingIntent(0, PendingIntent.FLAG_UPDATE_CURRENT)
     }
 
 //    private fun createHourglassIntent(ctx: Context): PendingIntent {
@@ -471,9 +536,9 @@ object NotificationCreator {
         }
 
         return TaskStackBuilder.create(ctx)
-                .addParentStack(HomeActivity::class.java)
-                .addNextIntent(intent)
-                .getPendingIntent(0, PendingIntent.FLAG_UPDATE_CURRENT)
+            .addParentStack(HomeActivity::class.java)
+            .addNextIntent(intent)
+            .getPendingIntent(0, PendingIntent.FLAG_UPDATE_CURRENT)
     }
 
     fun shouldShowNotification(value: String, context: Context, default: Boolean = true): Boolean {

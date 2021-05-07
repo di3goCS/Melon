@@ -2,7 +2,7 @@
  * This file is part of the UNES Open Source Project.
  * UNES is licensed under the GNU GPLv3.
  *
- * Copyright (c) 2019.  João Paulo Sena <joaopaulo761@gmail.com>
+ * Copyright (c) 2020. João Paulo Sena <joaopaulo761@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,40 +21,45 @@
 package com.forcetower.uefs.core.work.sync
 
 import android.content.Context
-import androidx.preference.PreferenceManager
 import androidx.annotation.IntRange
-import androidx.annotation.WorkerThread
+import androidx.hilt.work.HiltWorker
+import androidx.preference.PreferenceManager
 import androidx.work.BackoffPolicy
 import androidx.work.Constraints
+import androidx.work.CoroutineWorker
 import androidx.work.NetworkType
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
-import androidx.work.Worker
 import androidx.work.WorkerParameters
-import com.forcetower.uefs.UApplication
 import com.forcetower.uefs.core.constants.PreferenceConstants
 import com.forcetower.uefs.core.storage.repository.SagresSyncRepository
+import com.forcetower.uefs.core.storage.repository.SnowpiercerSyncRepository
 import com.forcetower.uefs.core.work.enqueueUnique
+import dagger.assisted.Assisted
+import dagger.assisted.AssistedInject
 import timber.log.Timber
 import java.util.concurrent.TimeUnit
-import javax.inject.Inject
+import javax.inject.Named
 
-class SyncMainWorker(
-    context: Context,
-    params: WorkerParameters
-) : Worker(context, params) {
-    @Inject
-    lateinit var repository: SagresSyncRepository
-
-    @WorkerThread
-    override fun doWork(): Result {
+@HiltWorker
+class SyncMainWorker @AssistedInject constructor(
+    @Assisted context: Context,
+    @Assisted params: WorkerParameters,
+    private val repository: SagresSyncRepository,
+    private val snowpiercer: SnowpiercerSyncRepository,
+    @Named("flagSnowpiercerEnabled") private val snowpiercerEnabled: Boolean,
+) : CoroutineWorker(context, params) {
+    override suspend fun doWork(): Result {
         try {
-            (applicationContext as UApplication).component.inject(this)
             Timber.d("Main Worker started")
-            repository.performSync("Principal")
+            if (snowpiercerEnabled) {
+                snowpiercer.performSync("Snowpiercer")
+            } else {
+                repository.performSync("Principal")
+            }
             Timber.d("Main Worker completed")
         } catch (t: Throwable) {
-            Timber.d("Worker ignored the error so it may continue")
+            Timber.d(t, "Worker ignored the error so it may continue")
         }
         return Result.success()
     }

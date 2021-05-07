@@ -2,7 +2,7 @@
  * This file is part of the UNES Open Source Project.
  * UNES is licensed under the GNU GPLv3.
  *
- * Copyright (c) 2019.  João Paulo Sena <joaopaulo761@gmail.com>
+ * Copyright (c) 2020. João Paulo Sena <joaopaulo761@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -28,15 +28,18 @@ import androidx.room.Index
 import androidx.room.PrimaryKey
 import java.util.UUID
 
-@Entity(foreignKeys = [
-    ForeignKey(entity = Class::class, parentColumns = ["uid"], childColumns = ["class_id"], onUpdate = CASCADE, onDelete = CASCADE),
-    ForeignKey(entity = Profile::class, parentColumns = ["uid"], childColumns = ["profile_id"], onUpdate = CASCADE, onDelete = CASCADE)
-], indices = [
-    Index(value = ["profile_id"]),
-    Index(value = ["class_id"], unique = false),
-    Index(value = ["class_id", "profile_id", "sequence"], unique = true),
-    Index(value = ["uuid"], unique = true)
-])
+@Entity(
+    foreignKeys = [
+        ForeignKey(entity = Class::class, parentColumns = ["uid"], childColumns = ["class_id"], onUpdate = CASCADE, onDelete = CASCADE),
+        ForeignKey(entity = Profile::class, parentColumns = ["uid"], childColumns = ["profile_id"], onUpdate = CASCADE, onDelete = CASCADE)
+    ],
+    indices = [
+        Index(value = ["profile_id"]),
+        Index(value = ["class_id"], unique = false),
+        Index(value = ["class_id", "profile_id", "sequence", "grouping"], unique = true),
+        Index(value = ["uuid"], unique = true)
+    ]
+)
 data class ClassAbsence(
     @PrimaryKey(autoGenerate = true)
     val uid: Long = 0,
@@ -47,10 +50,17 @@ data class ClassAbsence(
     val sequence: Int,
     val description: String,
     val date: String,
+    val grouping: String,
     val uuid: String = UUID.randomUUID().toString(),
     val notified: Boolean
 ) {
     override fun toString(): String {
         return "[sequence: $sequence]"
     }
+
+    fun isSame(other: ClassAbsence) =
+        other.classId == classId &&
+            other.profileId == profileId &&
+            other.sequence == sequence &&
+            other.grouping == grouping
 }

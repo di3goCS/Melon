@@ -2,7 +2,7 @@
  * This file is part of the UNES Open Source Project.
  * UNES is licensed under the GNU GPLv3.
  *
- * Copyright (c) 2019.  João Paulo Sena <joaopaulo761@gmail.com>
+ * Copyright (c) 2020. João Paulo Sena <joaopaulo761@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,6 +21,7 @@
 package com.forcetower.uefs.core.work.grades
 
 import android.content.Context
+import androidx.hilt.work.HiltWorker
 import androidx.work.BackoffPolicy
 import androidx.work.Constraints
 import androidx.work.NetworkType
@@ -28,20 +29,19 @@ import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.Worker
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
-import com.forcetower.uefs.UApplication
 import com.forcetower.uefs.core.storage.repository.SagresGradesRepository
 import com.forcetower.uefs.core.work.enqueueUnique
+import dagger.assisted.Assisted
+import dagger.assisted.AssistedInject
 import java.util.concurrent.TimeUnit
-import javax.inject.Inject
 
-class GradesSagresWorker(
-    context: Context,
-    params: WorkerParameters
+@HiltWorker
+class GradesSagresWorker @AssistedInject constructor(
+    @Assisted context: Context,
+    @Assisted params: WorkerParameters,
+    private val repository: SagresGradesRepository
 ) : Worker(context, params) {
-    @Inject
-    lateinit var repository: SagresGradesRepository
     override fun doWork(): Result {
-        (applicationContext as UApplication).component.inject(this)
         val semesterId = inputData.getLong(SEMESTER_ID, 0)
         return try {
             val result = repository.getGrades(semesterId)
@@ -63,17 +63,17 @@ class GradesSagresWorker(
 
         fun createWorker(context: Context, semesterId: Long) {
             val constraints = Constraints.Builder()
-                    .setRequiredNetworkType(NetworkType.CONNECTED)
-                    .build()
+                .setRequiredNetworkType(NetworkType.CONNECTED)
+                .build()
 
             val data = workDataOf(SEMESTER_ID to semesterId)
 
             val request = OneTimeWorkRequestBuilder<GradesSagresWorker>()
-                    .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 1, TimeUnit.MINUTES)
-                    .setInputData(data)
-                    .setConstraints(constraints)
-                    .addTag(TAG)
-                    .build()
+                .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 1, TimeUnit.MINUTES)
+                .setInputData(data)
+                .setConstraints(constraints)
+                .addTag(TAG)
+                .build()
 
             request.enqueueUnique(context, NAME + semesterId, true)
         }

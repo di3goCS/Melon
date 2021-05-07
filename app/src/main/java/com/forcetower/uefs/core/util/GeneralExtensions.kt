@@ -2,7 +2,7 @@
  * This file is part of the UNES Open Source Project.
  * UNES is licensed under the GNU GPLv3.
  *
- * Copyright (c) 2019.  João Paulo Sena <joaopaulo761@gmail.com>
+ * Copyright (c) 2020. João Paulo Sena <joaopaulo761@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -29,8 +29,8 @@ import com.forcetower.uefs.core.constants.Constants.SELECTED_INSTITUTION_KEY
 import com.google.gson.Gson
 import io.reactivex.BackpressureStrategy
 import io.reactivex.subjects.Subject
-import java.lang.Math.pow
 import kotlin.math.floor
+import kotlin.math.pow
 import kotlin.math.roundToInt
 
 fun Any.toJson(): String {
@@ -45,24 +45,29 @@ inline fun <reified T> String.fromJson(): T {
 
 fun Context.isConnectedToInternet(): Boolean {
     val manager = getSystemService(Context.CONNECTIVITY_SERVICE)
-            as? ConnectivityManager ?: return false
+        as? ConnectivityManager ?: return false
 
     return manager.allNetworks.isNotEmpty()
 }
 
 fun Double.truncate(decimals: Int = 1): Double {
-    val power = pow(10.0, decimals.toDouble())
+    val power = 10.0.pow(decimals.toDouble())
     return floor(this * power) / power
 }
 
 fun Double.round(decimals: Int = 1): Double {
-    val power = pow(10.0, decimals.toDouble())
+    val power = 10.0.pow(decimals.toDouble())
     return (this * power).roundToInt() / power
 }
 
 fun SharedPreferences.isStudentFromUEFS(): Boolean {
     val inst = getString(SELECTED_INSTITUTION_KEY, "UEFS") ?: "UEFS"
     return inst == "UEFS"
+}
+
+fun SharedPreferences.isStudentFromUESC(): Boolean {
+    val inst = getString(SELECTED_INSTITUTION_KEY, "UEFS") ?: "UEFS"
+    return inst == "UESC"
 }
 
 fun <T> Subject<T>.toLiveData(): LiveData<T> {

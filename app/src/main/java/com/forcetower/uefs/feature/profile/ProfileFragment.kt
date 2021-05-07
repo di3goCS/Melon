@@ -2,7 +2,7 @@
  * This file is part of the UNES Open Source Project.
  * UNES is licensed under the GNU GPLv3.
  *
- * Copyright (c) 2019.  João Paulo Sena <joaopaulo761@gmail.com>
+ * Copyright (c) 2020. João Paulo Sena <joaopaulo761@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,6 +22,7 @@ package com.forcetower.uefs.feature.profile
 
 import android.app.Activity
 import android.content.Intent
+import android.graphics.drawable.Drawable
 import android.net.Uri
 import android.os.Bundle
 import android.view.LayoutInflater
@@ -30,11 +31,11 @@ import android.view.ViewGroup
 import androidx.core.content.ContextCompat
 import androidx.core.os.bundleOf
 import androidx.core.view.doOnLayout
+import androidx.fragment.app.viewModels
 import androidx.lifecycle.Observer
+import com.forcetower.core.adapters.ImageLoadListener
+import com.forcetower.core.utils.ColorUtils
 import com.forcetower.uefs.R
-import com.forcetower.uefs.core.injection.Injectable
-import com.forcetower.uefs.core.util.ColorUtils
-import com.forcetower.uefs.core.vm.UViewModelFactory
 import com.forcetower.uefs.databinding.FragmentProfileBinding
 import com.forcetower.uefs.feature.profile.ProfileActivity.Companion.EXTRA_STUDENT_ID
 import com.forcetower.uefs.feature.profile.ProfileActivity.Companion.EXTRA_USER_ID
@@ -42,51 +43,48 @@ import com.forcetower.uefs.feature.setup.SetupViewModel
 import com.forcetower.uefs.feature.shared.UFragment
 import com.forcetower.uefs.feature.shared.extensions.inTransaction
 import com.forcetower.uefs.feature.shared.extensions.postponeEnterTransition
-import com.forcetower.uefs.feature.shared.extensions.provideViewModel
 import com.forcetower.uefs.feature.shared.getPixelsFromDp
 import com.forcetower.uefs.feature.siecomp.session.PushUpScrollListener
-import com.forcetower.uefs.feature.siecomp.speaker.ImageLoadListener
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.storage.FirebaseStorage
 import com.theartofdev.edmodo.cropper.CropImage
 import com.theartofdev.edmodo.cropper.CropImageView
+import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 
-class ProfileFragment : UFragment(), Injectable {
-    @Inject
-    lateinit var factory: UViewModelFactory
-    @Inject
-    lateinit var firebaseAuth: FirebaseAuth
-    @Inject
-    lateinit var firebaseStorage: FirebaseStorage
+@AndroidEntryPoint
+class ProfileFragment : UFragment() {
+    @Inject lateinit var firebaseAuth: FirebaseAuth
+    @Inject lateinit var firebaseStorage: FirebaseStorage
 
-    private lateinit var viewModel: ProfileViewModel
+    private val viewModel: ProfileViewModel by viewModels()
+    private val setupViewModel: SetupViewModel by viewModels()
     private lateinit var binding: FragmentProfileBinding
-    private lateinit var setupViewModel: SetupViewModel
     private lateinit var adapter: ProfileAdapter
 
-    override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View? {
-        viewModel = provideViewModel(factory)
-        setupViewModel = provideViewModel(factory)
+    override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         activity?.postponeEnterTransition(500L)
         val userId = requireNotNull(arguments).getLong(EXTRA_USER_ID, 0)
         check(userId != 0L) { "Well.. That happened" }
         viewModel.setUserId(userId)
         viewModel.setProfileId(requireNotNull(arguments).getLong(EXTRA_STUDENT_ID, 0))
-        viewModel.profile.observe(this, Observer {
-            it ?: return@Observer
-            if (it.imageUrl == null) {
-                activity?.startPostponedEnterTransition()
+        viewModel.profile.observe(
+            viewLifecycleOwner,
+            Observer {
+                it ?: return@Observer
+                if (it.imageUrl == null) {
+                    activity?.startPostponedEnterTransition()
+                }
+                if (it.me) {
+                    binding.writeStatement.hide()
+                } else {
+                    binding.writeStatement.show()
+                }
             }
-            if (it.me) {
-                binding.writeStatement.hide()
-            } else {
-                binding.writeStatement.show()
-            }
-        })
+        )
 
         val headLoadListener = object : ImageLoadListener {
-            override fun onImageLoaded() { activity?.startPostponedEnterTransition() }
+            override fun onImageLoaded(drawable: Drawable) { activity?.startPostponedEnterTransition() }
             override fun onImageLoadFailed() { activity?.startPostponedEnterTransition() }
         }
 
@@ -112,25 +110,31 @@ class ProfileFragment : UFragment(), Injectable {
                 doOnLayout {
                     addOnScrollListener(
                         PushUpScrollListener(
-                            binding.up, it, R.id.student_name, R.id.student_course
+                            binding.up,
+                            it,
+                            R.id.student_name,
+                            R.id.student_course
                         )
                     )
                 }
             }
         }
 
-        viewModel.statements.observe(this, Observer { statements ->
-            adapter.statements = statements.sortedByDescending { it.createdAt }
-        })
+        viewModel.statements.observe(
+            viewLifecycleOwner,
+            Observer { statements ->
+                adapter.statements = statements.sortedByDescending { it.createdAt }
+            }
+        )
 
         binding.up.setOnClickListener {
-            requireActivity().finish()
+            requireActivity().finishAfterTransition()
         }
 
         binding.writeStatement.setOnClickListener {
             val profileId = requireNotNull(arguments).getLong(EXTRA_STUDENT_ID, 0)
             val userId = requireNotNull(arguments).getLong(EXTRA_USER_ID, 0)
-            fragmentManager?.inTransaction {
+            parentFragmentManager.inTransaction {
                 val fragment = WriteStatementFragment().apply {
                     arguments = bundleOf(
                         EXTRA_STUDENT_ID to profileId,

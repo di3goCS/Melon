@@ -2,7 +2,7 @@
  * This file is part of the UNES Open Source Project.
  * UNES is licensed under the GNU GPLv3.
  *
- * Copyright (c) 2019.  João Paulo Sena <joaopaulo761@gmail.com>
+ * Copyright (c) 2020. João Paulo Sena <joaopaulo761@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -26,34 +26,29 @@ import android.view.View
 import android.view.View.GONE
 import android.view.View.VISIBLE
 import android.view.ViewGroup
-import androidx.lifecycle.Observer
+import androidx.fragment.app.activityViewModels
 import androidx.navigation.fragment.findNavController
+import com.forcetower.core.lifecycle.EventObserver
 import com.forcetower.uefs.R
-import com.forcetower.uefs.core.injection.Injectable
 import com.forcetower.uefs.core.model.service.EvaluationDiscipline
 import com.forcetower.uefs.core.model.service.EvaluationHomeTopic
 import com.forcetower.uefs.core.model.service.EvaluationTeacher
 import com.forcetower.uefs.core.model.unes.Account
 import com.forcetower.uefs.core.storage.resource.Resource
 import com.forcetower.uefs.core.storage.resource.Status
-import com.forcetower.uefs.core.vm.EventObserver
-import com.forcetower.uefs.core.vm.UViewModelFactory
 import com.forcetower.uefs.databinding.FragmentEvaluationHomeBinding
 import com.forcetower.uefs.feature.evaluation.EvaluationViewModel
 import com.forcetower.uefs.feature.shared.UFragment
-import com.forcetower.uefs.feature.shared.extensions.provideActivityViewModel
+import dagger.hilt.android.AndroidEntryPoint
 import timber.log.Timber
-import javax.inject.Inject
 
-class HomeFragment : UFragment(), Injectable {
-    @Inject
-    lateinit var factory: UViewModelFactory
-    private lateinit var viewModel: EvaluationViewModel
+@AndroidEntryPoint
+class HomeFragment : UFragment() {
+    private val viewModel: EvaluationViewModel by activityViewModels()
     private lateinit var binding: FragmentEvaluationHomeBinding
     private lateinit var adapter: EvaluationTopicAdapter
 
-    override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View? {
-        viewModel = provideActivityViewModel(factory)
+    override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         adapter = EvaluationTopicAdapter(viewModel)
         return FragmentEvaluationHomeBinding.inflate(inflater, container, false).apply {
             lifecycleOwner = this@HomeFragment
@@ -72,12 +67,12 @@ class HomeFragment : UFragment(), Injectable {
         }.root
     }
 
-    override fun onActivityCreated(savedInstanceState: Bundle?) {
-        super.onActivityCreated(savedInstanceState)
-        viewModel.getAccount().observe(this, Observer { handleAccount(it) })
-        viewModel.getTrendingList().observe(this, Observer { handleTopics(it) })
-        viewModel.disciplineSelect.observe(this, EventObserver { onDisciplineSelected(it) })
-        viewModel.teacherSelect.observe(this, EventObserver { onTeacherSelected(it) })
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+        viewModel.getAccount().observe(viewLifecycleOwner, { handleAccount(it) })
+        viewModel.getTrendingList().observe(viewLifecycleOwner, { handleTopics(it) })
+        viewModel.disciplineSelect.observe(viewLifecycleOwner, EventObserver { onDisciplineSelected(it) })
+        viewModel.teacherSelect.observe(viewLifecycleOwner, EventObserver { onTeacherSelected(it) })
     }
 
     private fun onTeacherSelected(teacher: EvaluationTeacher) {

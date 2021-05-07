@@ -2,7 +2,7 @@
  * This file is part of the UNES Open Source Project.
  * UNES is licensed under the GNU GPLv3.
  *
- * Copyright (c) 2019.  João Paulo Sena <joaopaulo761@gmail.com>
+ * Copyright (c) 2020. João Paulo Sena <joaopaulo761@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -24,11 +24,11 @@ import android.os.Handler
 import android.os.Looper
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
-import com.crashlytics.android.Crashlytics
 import com.forcetower.uefs.AppExecutors
 import com.forcetower.uefs.core.model.bigtray.BigTrayData
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import timber.log.Timber
 import javax.inject.Inject
 
 class BigTrayRepository @Inject constructor(
@@ -80,7 +80,7 @@ class BigTrayRepository @Inject constructor(
                     if (values.size == 2) {
                         return BigTrayData.createData(values)
                     } else {
-                        Crashlytics.log("The size of the big tray has changed to ${values.size}")
+                        Timber.e("The size of the big tray has changed to ${values.size}")
                     }
                 }
             }
@@ -90,9 +90,9 @@ class BigTrayRepository @Inject constructor(
     }
 
     private fun createRequest() =
-            Request.Builder()
-                .url("http://www.propaae.uefs.br/ru/getCotas.php")
-                .get()
-                .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/69.0.3497.92 Safari/537.36")
-                .build()
+        Request.Builder()
+            .url("http://www.propaae.uefs.br/ru/getCotas.php")
+            .get()
+            .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/69.0.3497.92 Safari/537.36")
+            .build()
 }

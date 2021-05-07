@@ -3,7 +3,7 @@
   ~ This file is part of the UNES Open Source Project.
   ~ UNES is licensed under the GNU GPLv3.
   ~
-  ~ Copyright (c) 2019.  João Paulo Sena <joaopaulo761@gmail.com>
+  ~ Copyright (c) 2020. João Paulo Sena <joaopaulo761@gmail.com>
   ~
   ~ This program is free software: you can redistribute it and/or modify
   ~ it under the terms of the GNU General Public License as published by
@@ -19,7 +19,8 @@
   ~ along with this program.  If not, see <https://www.gnu.org/licenses/>.
   -->
 
-<menu xmlns:android="http://schemas.android.com/apk/res/android">
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
     <item android:title="@string/sagres_functions">
         <menu>
             <group
@@ -40,6 +41,12 @@
                     android:icon="@drawable/ic_gift_card_black_24dp"/>
 
                 <item
+                    android:id="@+id/campus_map"
+                    android:title="@string/campus_map"
+                    android:menuCategory="secondary"
+                    android:icon="@drawable/ic_baseline_map_24"/>
+
+                <item
                     android:id="@+id/evaluation"
                     android:title="@string/label_evaluation"
                     android:menuCategory="secondary"
@@ -50,6 +57,13 @@
                     android:title="@string/label_flowchart"
                     android:menuCategory="secondary"
                     android:icon="@drawable/ic_bookmark_border_black_24dp"/>
+
+                <item
+                    android:id="@+id/theme_switcher"
+                    android:title="@string/label_theme_editor"
+                    android:menuCategory="secondary"
+                    android:icon="@drawable/ic_theme_black_24dp"
+                    app:contentDescription="theme_editor_name_flag"/>
 
                 <item
                     android:id="@+id/documents"
@@ -94,6 +108,12 @@
                     android:visible="false"
                     android:menuCategory="secondary"
                     android:icon="@drawable/ic_event_black_24dp"/>
+
+                <item
+                    android:id="@+id/mech_calculator"
+                    android:title="@string/label_mech_calculator"
+                    android:menuCategory="secondary"
+                    android:icon="@drawable/ic_dvr_black_24dp"/>
     
                 <item
                     android:id="@+id/reminders"
@@ -106,18 +126,6 @@
                     android:title="@string/label_adventure"
                     android:menuCategory="secondary"
                     android:icon="@drawable/ic_games_black_24dp"/>
-
-                <item
-                    android:id="@+id/dark_theme_event"
-                    android:title="@string/label_dark_theme_event"
-                    android:menuCategory="secondary"
-                    android:icon="@drawable/ic_theme_black_24dp"/>
-
-                <item
-                    android:id="@+id/mech_calculator"
-                    android:title="@string/label_mech_calculator"
-                    android:menuCategory="secondary"
-                    android:icon="@drawable/ic_dvr_black_24dp"/>
                 
                 <item
                     android:id="@+id/library"

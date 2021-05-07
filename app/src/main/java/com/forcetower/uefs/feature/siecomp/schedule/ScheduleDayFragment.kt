@@ -2,7 +2,7 @@
  * This file is part of the UNES Open Source Project.
  * UNES is licensed under the GNU GPLv3.
  *
- * Copyright (c) 2019.  João Paulo Sena <joaopaulo761@gmail.com>
+ * Copyright (c) 2020. João Paulo Sena <joaopaulo761@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -26,42 +26,24 @@ import android.view.View
 import android.view.ViewGroup
 import androidx.core.os.bundleOf
 import androidx.core.view.doOnNextLayout
+import androidx.fragment.app.activityViewModels
 import androidx.lifecycle.Observer
 import androidx.recyclerview.widget.DefaultItemAnimator
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import com.forcetower.uefs.core.injection.Injectable
 import com.forcetower.uefs.core.storage.eventdatabase.accessors.SessionWithData
-import com.forcetower.uefs.core.util.siecomp.TimeUtils
 import com.forcetower.uefs.core.util.siecomp.TimeUtils.SIECOMP_TIMEZONE
-import com.forcetower.uefs.core.vm.UViewModelFactory
 import com.forcetower.uefs.databinding.FragmentEventScheduleDayBinding
 import com.forcetower.uefs.feature.shared.UFragment
 import com.forcetower.uefs.feature.shared.clearDecorations
-import com.forcetower.uefs.feature.shared.extensions.provideActivityViewModel
 import com.forcetower.uefs.feature.siecomp.SIECOMPEventViewModel
-import javax.inject.Inject
+import dagger.hilt.android.AndroidEntryPoint
 
-class ScheduleDayFragment : UFragment(), Injectable {
-    companion object {
-        private const val ARG_EVENT_DAY = "arg.EVENT_DAY"
-
-        fun newInstance(day: Int): ScheduleDayFragment {
-            val args = bundleOf(ARG_EVENT_DAY to day)
-            return ScheduleDayFragment().apply { arguments = args }
-        }
-    }
-
-    private val eventDay: Int by lazy {
-        val args = arguments ?: throw IllegalStateException("No Arguments")
-        args.getInt(ARG_EVENT_DAY)
-    }
-
-    @Inject
-    lateinit var factory: UViewModelFactory
-    private lateinit var viewModel: SIECOMPEventViewModel
+@AndroidEntryPoint
+class ScheduleDayFragment : UFragment() {
     private lateinit var binding: FragmentEventScheduleDayBinding
     private lateinit var adapter: ScheduleDayAdapter
+    private val viewModel: SIECOMPEventViewModel by activityViewModels()
     private val tagViewPool = RecyclerView.RecycledViewPool()
     private val sessionViewPool = RecyclerView.RecycledViewPool()
 
@@ -71,7 +53,6 @@ class ScheduleDayFragment : UFragment(), Injectable {
     }
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View? {
-        viewModel = provideActivityViewModel(factory)
         binding = FragmentEventScheduleDayBinding.inflate(inflater, container, false).apply {
             lifecycleOwner = this@ScheduleDayFragment
         }
@@ -79,7 +60,7 @@ class ScheduleDayFragment : UFragment(), Injectable {
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
-        adapter = ScheduleDayAdapter(viewModel, tagViewPool, TimeUtils.SIECOMP_TIMEZONE)
+        adapter = ScheduleDayAdapter(viewModel, tagViewPool, SIECOMP_TIMEZONE)
         binding.recyclerDaySchedule.apply {
             setRecycledViewPool(sessionViewPool)
             adapter = this@ScheduleDayFragment.adapter
@@ -93,15 +74,13 @@ class ScheduleDayFragment : UFragment(), Injectable {
             }
         }
 
-        // TODO Maybe move to current event
-    }
-
-    override fun onActivityCreated(savedInstanceState: Bundle?) {
-        super.onActivityCreated(savedInstanceState)
-        viewModel.getSessionsFromDayLocal(eventDay).observe(this, Observer {
-            it ?: return@Observer
-            populateInterface(it)
-        })
+        viewModel.getSessionsFromDayLocal(requireArguments().getInt(ARG_EVENT_DAY)).observe(
+            viewLifecycleOwner,
+            Observer {
+                it ?: return@Observer
+                populateInterface(it)
+            }
+        )
     }
 
     private fun populateInterface(data: List<SessionWithData>) {
@@ -112,11 +91,22 @@ class ScheduleDayFragment : UFragment(), Injectable {
                 if (data.isNotEmpty()) {
                     addItemDecoration(
                         ScheduleItemHeaderDecoration(
-                            it.context, data, SIECOMP_TIMEZONE
+                            it.context,
+                            data,
+                            SIECOMP_TIMEZONE
                         )
                     )
                 }
             }
+        }
+    }
+
+    companion object {
+        private const val ARG_EVENT_DAY = "arg.EVENT_DAY"
+
+        fun newInstance(day: Int): ScheduleDayFragment {
+            val args = bundleOf(ARG_EVENT_DAY to day)
+            return ScheduleDayFragment().apply { arguments = args }
         }
     }
 }

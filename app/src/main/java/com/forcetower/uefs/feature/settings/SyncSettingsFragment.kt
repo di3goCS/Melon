@@ -2,7 +2,7 @@
  * This file is part of the UNES Open Source Project.
  * UNES is licensed under the GNU GPLv3.
  *
- * Copyright (c) 2019.  João Paulo Sena <joaopaulo761@gmail.com>
+ * Copyright (c) 2020. João Paulo Sena <joaopaulo761@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,28 +20,31 @@
 
 package com.forcetower.uefs.feature.settings
 
+import android.Manifest.permission.ACCESS_BACKGROUND_LOCATION
 import android.Manifest.permission.ACCESS_COARSE_LOCATION
 import android.Manifest.permission.ACCESS_FINE_LOCATION
 import android.content.SharedPreferences
 import android.os.Bundle
+import android.view.View
 import android.widget.Toast
-import androidx.lifecycle.Observer
 import androidx.preference.ListPreference
 import androidx.preference.PreferenceFragmentCompat
 import androidx.preference.TwoStatePreference
 import com.forcetower.uefs.R
 import com.forcetower.uefs.RC_LOCATION_PERMISSION
-import com.forcetower.uefs.core.injection.Injectable
 import com.forcetower.uefs.core.storage.repository.FirebaseAuthRepository
 import com.forcetower.uefs.core.storage.repository.SyncFrequencyRepository
+import com.forcetower.uefs.core.util.VersionUtils
 import com.forcetower.uefs.core.work.sync.SyncLinkedWorker
 import com.forcetower.uefs.core.work.sync.SyncMainWorker
+import dagger.hilt.android.AndroidEntryPoint
 import pub.devrel.easypermissions.AfterPermissionGranted
 import pub.devrel.easypermissions.EasyPermissions
 import timber.log.Timber
 import javax.inject.Inject
 
-class SyncSettingsFragment : PreferenceFragmentCompat(), Injectable {
+@AndroidEntryPoint
+class SyncSettingsFragment : PreferenceFragmentCompat() {
     @Inject
     lateinit var firebaseRepository: FirebaseAuthRepository
     @Inject
@@ -55,13 +58,16 @@ class SyncSettingsFragment : PreferenceFragmentCompat(), Injectable {
         setPreferencesFromResource(R.xml.settings_synchronization, rootKey)
     }
 
-    override fun onActivityCreated(savedInstanceState: Bundle?) {
-        super.onActivityCreated(savedInstanceState)
-        repository.getFrequencies().observe(this, Observer { frequencies ->
-            val entries = frequencies.map { it.name }
-            val values = frequencies.map { it.value.toString() }
-            configureFrequencies(entries, values)
-        })
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+        repository.getFrequencies().observe(
+            viewLifecycleOwner,
+            { frequencies ->
+                val entries = frequencies.map { it.name }
+                val values = frequencies.map { it.value.toString() }
+                configureFrequencies(entries, values)
+            }
+        )
     }
 
     private fun configureFrequencies(entries: List<String>, values: List<String>) {
@@ -161,7 +167,11 @@ class SyncSettingsFragment : PreferenceFragmentCompat(), Injectable {
 
     @AfterPermissionGranted(RC_LOCATION_PERMISSION)
     private fun checkAndEnableAutoProxy() {
-        val perms = arrayOf(ACCESS_FINE_LOCATION, ACCESS_COARSE_LOCATION)
+        val permissions = mutableListOf(ACCESS_FINE_LOCATION, ACCESS_COARSE_LOCATION)
+        if (VersionUtils.isAndroid10()) {
+            permissions.add(ACCESS_BACKGROUND_LOCATION)
+        }
+        val perms = permissions.toTypedArray()
         if (EasyPermissions.hasPermissions(requireContext(), *perms)) {
             enableAutoProxy()
         } else {

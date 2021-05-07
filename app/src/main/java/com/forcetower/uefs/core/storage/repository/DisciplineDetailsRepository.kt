@@ -2,7 +2,7 @@
  * This file is part of the UNES Open Source Project.
  * UNES is licensed under the GNU GPLv3.
  *
- * Copyright (c) 2019.  João Paulo Sena <joaopaulo761@gmail.com>
+ * Copyright (c) 2020. João Paulo Sena <joaopaulo761@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -24,6 +24,7 @@ import androidx.annotation.AnyThread
 import androidx.annotation.MainThread
 import androidx.annotation.WorkerThread
 import androidx.lifecycle.LiveData
+import com.forcetower.sagres.Constants
 import com.forcetower.sagres.SagresNavigator
 import com.forcetower.sagres.database.model.SagresDiscipline
 import com.forcetower.sagres.database.model.SagresDisciplineGroup
@@ -37,6 +38,7 @@ import com.forcetower.uefs.core.model.unes.Semester
 import com.forcetower.uefs.core.storage.database.UDatabase
 import com.forcetower.uefs.core.storage.network.UService
 import com.forcetower.uefs.core.storage.resource.discipline.LoadDisciplineDetailsResource
+import com.google.firebase.remoteconfig.FirebaseRemoteConfig
 import timber.log.Timber
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -46,7 +48,8 @@ class DisciplineDetailsRepository @Inject constructor(
     private val database: UDatabase,
     private val executors: AppExecutors,
     private val gradesRepository: SagresGradesRepository,
-    private val service: UService
+    private val service: UService,
+    private val remoteConfig: FirebaseRemoteConfig
 ) {
 
     /**
@@ -93,10 +96,26 @@ class DisciplineDetailsRepository @Inject constructor(
         }
     }
 
+    @AnyThread
+    fun contributeCurrent() {
+        executors.diskIO().execute {
+            val currentOnly = remoteConfig.getBoolean("contribute_only_current")
+            sendDisciplineDetails(currentOnly)
+        }
+    }
+
     @WorkerThread
-    fun sendDisciplineDetails() {
-        val stats = database.classGroupDao().getClassStatsWithAllDirect()
+    fun sendDisciplineDetails(current: Boolean = false) {
         val semesters = database.semesterDao().getSemestersDirect()
+        val currentSemester = semesters.maxByOrNull { it.sagresId }?.sagresId
+
+        val stats = if (current) {
+            currentSemester ?: return
+            database.classGroupDao().getClassStatsWithAllDirect(currentSemester)
+        } else {
+            database.classGroupDao().getClassStatsWithAllDirect()
+        }
+
         val profile = database.profileDao().selectMeDirect() ?: return
 
         val treated = stats.transformToNewStyle()
@@ -131,7 +150,9 @@ class DisciplineDetailsRepository @Inject constructor(
     fun experimentalDisciplines(partialLoad: Boolean = false, notify: Boolean = true) {
         val access = database.accessDao().getAccessDirect()
         if (access != null) {
-            SagresNavigator.instance.login(access.username, access.password)
+            if (Constants.getParameter("REQUIRES_CAPTCHA") != "true") {
+                SagresNavigator.instance.login(access.username, access.password)
+            }
             val experimental = SagresNavigator.instance.disciplinesExperimental(
                 discover = false,
                 partialLoad = partialLoad

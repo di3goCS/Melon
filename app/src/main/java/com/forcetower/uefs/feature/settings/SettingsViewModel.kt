@@ -2,7 +2,7 @@
  * This file is part of the UNES Open Source Project.
  * UNES is licensed under the GNU GPLv3.
  *
- * Copyright (c) 2019.  João Paulo Sena <joaopaulo761@gmail.com>
+ * Copyright (c) 2020. João Paulo Sena <joaopaulo761@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,15 +20,24 @@
 
 package com.forcetower.uefs.feature.settings
 
+import android.content.Context
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.ViewModel
 import com.forcetower.uefs.core.storage.repository.SettingsRepository
+import com.google.android.play.core.splitinstall.SplitInstallManagerFactory
+import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 
+@HiltViewModel
 class SettingsViewModel @Inject constructor(
-    private val repository: SettingsRepository
+    private val repository: SettingsRepository,
+    context: Context
 ) : ViewModel() {
+    private val splitInstallManager = SplitInstallManagerFactory.create(context)
     private var done: Boolean = false
+
+    val isDarkModeEnabled: LiveData<Boolean>
+        get() = repository.hasDarkModeEnabled()
 
     fun getAllTheGrades() {
         if (done) return
@@ -36,6 +45,9 @@ class SettingsViewModel @Inject constructor(
         repository.requestAllGradesAndCalculateScore()
     }
 
-    val isDarkModeEnabled: LiveData<Boolean>
-        get() = repository.hasDarkModeEnabled()
+    fun uninstallModuleIfExists(name: String) {
+        if (splitInstallManager.installedModules.contains(name)) {
+            splitInstallManager.deferredUninstall(listOf(name)).addOnCompleteListener {}
+        }
+    }
 }

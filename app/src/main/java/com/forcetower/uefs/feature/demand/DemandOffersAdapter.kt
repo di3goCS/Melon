@@ -2,7 +2,7 @@
  * This file is part of the UNES Open Source Project.
  * UNES is licensed under the GNU GPLv3.
  *
- * Copyright (c) 2019.  João Paulo Sena <joaopaulo761@gmail.com>
+ * Copyright (c) 2020. João Paulo Sena <joaopaulo761@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -40,10 +40,10 @@ class DemandOffersAdapter(
     private val differ = AsyncListDiffer(this, DiffCallback)
 
     var currentList: List<SagresDemandOffer> = listOf()
-    set(value) {
-        field = value
-        differ.submitList(buildMergedList(offers = currentList))
-    }
+        set(value) {
+            field = value
+            differ.submitList(buildMergedList(offers = currentList))
+        }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): DemandHolder {
         return when (viewType) {

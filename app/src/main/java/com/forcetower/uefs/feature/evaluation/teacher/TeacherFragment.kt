@@ -2,7 +2,7 @@
  * This file is part of the UNES Open Source Project.
  * UNES is licensed under the GNU GPLv3.
  *
- * Copyright (c) 2019.  João Paulo Sena <joaopaulo761@gmail.com>
+ * Copyright (c) 2020. João Paulo Sena <joaopaulo761@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -24,31 +24,27 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import androidx.fragment.app.viewModels
 import androidx.lifecycle.Observer
 import androidx.navigation.fragment.findNavController
 import androidx.navigation.fragment.navArgs
-import com.forcetower.uefs.core.injection.Injectable
+import com.forcetower.core.lifecycle.EventObserver
 import com.forcetower.uefs.core.model.service.EvaluationTeacher
 import com.forcetower.uefs.core.storage.resource.Resource
 import com.forcetower.uefs.core.storage.resource.Status
-import com.forcetower.uefs.core.vm.EventObserver
-import com.forcetower.uefs.core.vm.UViewModelFactory
 import com.forcetower.uefs.databinding.FragmentEvaluateTeacherBinding
 import com.forcetower.uefs.feature.evaluation.EvaluationViewModel
 import com.forcetower.uefs.feature.shared.UFragment
-import com.forcetower.uefs.feature.shared.extensions.provideViewModel
-import javax.inject.Inject
+import dagger.hilt.android.AndroidEntryPoint
 
-class TeacherFragment : UFragment(), Injectable {
+@AndroidEntryPoint
+class TeacherFragment : UFragment() {
     private lateinit var binding: FragmentEvaluateTeacherBinding
-    @Inject
-    lateinit var factory: UViewModelFactory
-    private lateinit var viewModel: EvaluationViewModel
     private lateinit var adapter: TeacherAdapter
+    private val viewModel: EvaluationViewModel by viewModels()
     private val args: TeacherFragmentArgs by navArgs()
 
-    override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View? {
-        viewModel = provideViewModel(factory)
+    override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         adapter = TeacherAdapter(viewModel)
         return FragmentEvaluateTeacherBinding.inflate(inflater, container, false).apply {
             btnEvaluate.hide()
@@ -58,19 +54,22 @@ class TeacherFragment : UFragment(), Injectable {
         }.root
     }
 
-    override fun onActivityCreated(savedInstanceState: Bundle?) {
-        super.onActivityCreated(savedInstanceState)
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
         val teacherName = args.teacherName
         val liveData = if (teacherName != null) {
             viewModel.getTeacher(teacherName)
         } else {
             viewModel.getTeacher(args.teacherId)
         }
-        liveData.observe(this, Observer { handleData(it) })
-        viewModel.disciplineSelect.observe(this, EventObserver {
-            val directions = TeacherFragmentDirections.actionTeacherToDiscipline(it.code, it.department)
-            findNavController().navigate(directions)
-        })
+        liveData.observe(viewLifecycleOwner, Observer { handleData(it) })
+        viewModel.disciplineSelect.observe(
+            viewLifecycleOwner,
+            EventObserver {
+                val directions = TeacherFragmentDirections.actionTeacherToDiscipline(it.code, it.department)
+                findNavController().navigate(directions)
+            }
+        )
         binding.btnEvaluate.setOnClickListener {
             val directions = TeacherFragmentDirections.actionEvalTeacherToRating(args.teacherId)
             findNavController().navigate(directions)

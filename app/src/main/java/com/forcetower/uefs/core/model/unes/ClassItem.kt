@@ -2,7 +2,7 @@
  * This file is part of the UNES Open Source Project.
  * UNES is licensed under the GNU GPLv3.
  *
- * Copyright (c) 2019.  João Paulo Sena <joaopaulo761@gmail.com>
+ * Copyright (c) 2020. João Paulo Sena <joaopaulo761@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -28,16 +28,19 @@ import androidx.room.PrimaryKey
 import com.forcetower.sagres.database.model.SagresDisciplineClassItem
 import java.util.UUID
 
-@Entity(foreignKeys = [
-    ForeignKey(entity = ClassGroup::class, parentColumns = ["uid"], childColumns = ["group_id"], onUpdate = ForeignKey.CASCADE, onDelete = ForeignKey.CASCADE)
-], indices = [
-    Index(value = ["group_id", "number"], unique = true),
-    Index(value = ["number_of_materials"], unique = false),
-    Index(value = ["situation"], unique = false),
-    Index(value = ["date"], unique = false),
-    Index(value = ["is_new"], unique = false),
-    Index(value = ["uuid"], unique = true)
-])
+@Entity(
+    foreignKeys = [
+        ForeignKey(entity = ClassGroup::class, parentColumns = ["uid"], childColumns = ["group_id"], onUpdate = ForeignKey.CASCADE, onDelete = ForeignKey.CASCADE)
+    ],
+    indices = [
+        Index(value = ["group_id", "number"], unique = true),
+        Index(value = ["number_of_materials"], unique = false),
+        Index(value = ["situation"], unique = false),
+        Index(value = ["date"], unique = false),
+        Index(value = ["is_new"], unique = false),
+        Index(value = ["uuid"], unique = true)
+    ]
+)
 data class ClassItem(
     @PrimaryKey(autoGenerate = true)
     val uid: Long = 0,

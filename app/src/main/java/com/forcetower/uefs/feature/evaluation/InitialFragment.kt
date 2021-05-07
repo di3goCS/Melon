@@ -2,7 +2,7 @@
  * This file is part of the UNES Open Source Project.
  * UNES is licensed under the GNU GPLv3.
  *
- * Copyright (c) 2019.  João Paulo Sena <joaopaulo761@gmail.com>
+ * Copyright (c) 2020. João Paulo Sena <joaopaulo761@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,36 +22,42 @@ package com.forcetower.uefs.feature.evaluation
 
 import android.content.SharedPreferences
 import android.os.Bundle
-import androidx.lifecycle.Observer
+import android.view.LayoutInflater
+import android.view.View
+import android.view.ViewGroup
+import androidx.fragment.app.activityViewModels
 import androidx.navigation.fragment.findNavController
 import com.forcetower.uefs.R
-import com.forcetower.uefs.core.injection.Injectable
-import com.forcetower.uefs.core.vm.UViewModelFactory
 import com.forcetower.uefs.feature.shared.UFragment
-import com.forcetower.uefs.feature.shared.extensions.provideActivityViewModel
+import dagger.hilt.android.AndroidEntryPoint
 import timber.log.Timber
 import javax.inject.Inject
 
-class InitialFragment : UFragment(), Injectable {
+@AndroidEntryPoint
+class InitialFragment : UFragment() {
     @Inject
     lateinit var preferences: SharedPreferences
-    @Inject
-    lateinit var factory: UViewModelFactory
-    private lateinit var viewModel: EvaluationViewModel
+    private val viewModel: EvaluationViewModel by activityViewModels()
 
-    override fun onActivityCreated(savedInstanceState: Bundle?) {
-        super.onActivityCreated(savedInstanceState)
+    override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
+        return View(context)
+    }
+
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
         val onboarding = preferences.getBoolean("evaluation_presentation_shown", false)
-        viewModel = provideActivityViewModel(factory)
-        viewModel.getToken().observe(this, Observer {
-            Timber.d("Token received: $it")
-            if (it == null) {
-                findNavController().navigate(R.id.action_initial_to_unesverse_required)
-            } else if (!onboarding) {
-                findNavController().navigate(R.id.action_initial_to_presentation)
-            } else {
-                findNavController().navigate(R.id.action_initial_to_home)
+        viewModel.getToken().observe(
+            viewLifecycleOwner,
+            {
+                Timber.d("Token received: $it")
+                if (it == null) {
+                    findNavController().navigate(R.id.action_initial_to_unesverse_required)
+                } else if (!onboarding) {
+                    findNavController().navigate(R.id.action_initial_to_presentation)
+                } else {
+                    findNavController().navigate(R.id.action_initial_to_home)
+                }
             }
-        })
+        )
     }
 }

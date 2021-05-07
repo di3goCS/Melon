@@ -2,7 +2,7 @@
  * This file is part of the UNES Open Source Project.
  * UNES is licensed under the GNU GPLv3.
  *
- * Copyright (c) 2019.  João Paulo Sena <joaopaulo761@gmail.com>
+ * Copyright (c) 2020. João Paulo Sena <joaopaulo761@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -23,7 +23,6 @@ package com.forcetower.uefs.core.storage.database.dao
 import androidx.lifecycle.LiveData
 import androidx.room.Dao
 import androidx.room.Query
-import com.crashlytics.android.Crashlytics
 import com.forcetower.uefs.core.model.unes.FlowchartRequirementUI
 import timber.log.Timber
 
@@ -44,28 +43,30 @@ abstract class FlowchartRequirementDao {
     fun getRecursiveRequirementsUI(disciplineId: Long, name: String): List<FlowchartRequirementUI> {
         try {
             return getRecursiveRequirementsWorker(disciplineId)
-                    .distinctBy { it.requiredDisciplineId }
-                    .map { FlowchartRequirementUI(
-                            it.id,
-                            name,
-                            it.shownName,
-                            it.disciplineId,
-                            it.requiredDisciplineId,
-                            it.coursePercentage,
-                            it.courseHours,
-                            -1,
-                            it.sequence,
-                            it.semesterName,
-                            it.completed
-                    ) }
-                    .sortedWith(Comparator { a, b ->
+                .distinctBy { it.requiredDisciplineId }
+                .map {
+                    FlowchartRequirementUI(
+                        it.id,
+                        name,
+                        it.shownName,
+                        it.disciplineId,
+                        it.requiredDisciplineId,
+                        it.coursePercentage,
+                        it.courseHours,
+                        -1,
+                        it.sequence,
+                        it.semesterName,
+                        it.completed
+                    )
+                }
+                .sortedWith(
+                    Comparator { a, b ->
                         val diff = compareValues(a.sequence, b.sequence)
                         if (diff != 0) diff else compareValues(a.shownName, b.shownName)
-                    })
+                    }
+                )
         } catch (t: Throwable) {
-            Timber.e(t, "A stack overflow!")
-            Crashlytics.log("Probably a stack overflow happened on requirements!!!")
-            Crashlytics.logException(t)
+            Timber.e(t, "A stack overflow on requirements!")
         }
         return emptyList()
     }
@@ -73,28 +74,30 @@ abstract class FlowchartRequirementDao {
     fun getRecursiveUnlockRequirementUI(disciplineId: Long, name: String): List<FlowchartRequirementUI> {
         try {
             return getRecursiveUnlockRequirementWorker(disciplineId)
-                    .distinctBy { it.disciplineId }
-                    .map { FlowchartRequirementUI(
-                            it.id,
-                            name,
-                            it.shownName,
-                            it.disciplineId,
-                            it.requiredDisciplineId,
-                            it.coursePercentage,
-                            it.courseHours,
-                            -2,
-                            it.sequence,
-                            it.semesterName,
-                            it.completed
-                    ) }
-                    .sortedWith(Comparator { a, b ->
+                .distinctBy { it.disciplineId }
+                .map {
+                    FlowchartRequirementUI(
+                        it.id,
+                        name,
+                        it.shownName,
+                        it.disciplineId,
+                        it.requiredDisciplineId,
+                        it.coursePercentage,
+                        it.courseHours,
+                        -2,
+                        it.sequence,
+                        it.semesterName,
+                        it.completed
+                    )
+                }
+                .sortedWith(
+                    Comparator { a, b ->
                         val diff = compareValues(a.sequence, b.sequence)
                         if (diff != 0) diff else compareValues(a.shownName, b.shownName)
-                    })
+                    }
+                )
         } catch (t: Throwable) {
-            Timber.e(t, "A stack overflow!")
-            Crashlytics.log("Probably a stack overflow happened on unlock!!!")
-            Crashlytics.logException(t)
+            Timber.e(t, "A stack overflow on unlock!")
         }
         return emptyList()
     }

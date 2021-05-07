@@ -2,7 +2,7 @@
  * This file is part of the UNES Open Source Project.
  * UNES is licensed under the GNU GPLv3.
  *
- * Copyright (c) 2019.  João Paulo Sena <joaopaulo761@gmail.com>
+ * Copyright (c) 2020. João Paulo Sena <joaopaulo761@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,75 +21,42 @@
 package com.forcetower.uefs.feature.login
 
 import android.content.Intent
-import android.content.SharedPreferences
-import android.content.res.Configuration
 import android.os.Bundle
-import androidx.appcompat.app.AppCompatDelegate
+import androidx.activity.viewModels
 import androidx.databinding.DataBindingUtil
-import androidx.fragment.app.Fragment
-import androidx.lifecycle.Observer
 import androidx.navigation.findNavController
 import com.forcetower.uefs.R
-import com.forcetower.uefs.core.vm.CourseViewModel
-import com.forcetower.uefs.core.vm.UViewModelFactory
 import com.forcetower.uefs.databinding.ActivityLoginBinding
 import com.forcetower.uefs.feature.shared.UActivity
 import com.forcetower.uefs.feature.shared.extensions.config
-import com.forcetower.uefs.feature.shared.extensions.provideViewModel
 import com.google.android.material.snackbar.Snackbar
-import dagger.android.AndroidInjector
-import dagger.android.DispatchingAndroidInjector
-import dagger.android.support.HasSupportFragmentInjector
-import timber.log.Timber
-import javax.inject.Inject
+import dagger.hilt.android.AndroidEntryPoint
 
-class LoginActivity : UActivity(), HasSupportFragmentInjector {
-    @Inject
-    lateinit var fragmentInjector: DispatchingAndroidInjector<Fragment>
-    @Inject
-    lateinit var factory: UViewModelFactory
-    @Inject
-    lateinit var preferences: SharedPreferences
-
+/**
+ * This class represents the main authentication flow.
+ */
+@AndroidEntryPoint
+class LoginActivity : UActivity() {
     private lateinit var binding: ActivityLoginBinding
+    private val viewModel by viewModels<LoginViewModel>()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = DataBindingUtil.setContentView(this, R.layout.activity_login)
-        val coursesViewModel = provideViewModel<CourseViewModel>(factory)
-        coursesViewModel.courses.observe(this, Observer {
-            Timber.d("Courses Status: ${it.status}")
-        })
 
-        if (savedInstanceState == null) {
-            onActivityStart()
-        }
-    }
-
-    private fun onActivityStart() {
-        val enabled = preferences.getBoolean("ach_night_mode_enabled", false)
-        if (enabled) return
-
-        when (resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) {
-            Configuration.UI_MODE_NIGHT_NO -> Unit
-            Configuration.UI_MODE_NIGHT_YES -> {
-                AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO)
-                recreate()
-            }
-            Configuration.UI_MODE_NIGHT_UNDEFINED -> {
-                AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO)
-                recreate()
-            }
-        }
+        // Load university courses into database
+        viewModel.loadCoursesIfNeeded()
     }
 
     override fun navigateUpTo(upIntent: Intent?): Boolean = findNavController(R.id.login_nav_host).navigateUp()
 
-    override fun showSnack(string: String, long: Boolean) {
-        val snack = Snackbar.make(binding.root, string, if (long) Snackbar.LENGTH_LONG else Snackbar.LENGTH_SHORT)
-        snack.config()
-        snack.show()
+    override fun showSnack(string: String, duration: Int) {
+        getSnackInstance(string, duration).show()
     }
 
-    override fun supportFragmentInjector(): AndroidInjector<Fragment> = fragmentInjector
+    override fun getSnackInstance(string: String, duration: Int): Snackbar {
+        val snack = Snackbar.make(binding.root, string, duration)
+        snack.config()
+        return snack
+    }
 }

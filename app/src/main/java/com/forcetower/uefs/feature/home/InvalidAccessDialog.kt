@@ -2,7 +2,7 @@
  * This file is part of the UNES Open Source Project.
  * UNES is licensed under the GNU GPLv3.
  *
- * Copyright (c) 2019.  João Paulo Sena <joaopaulo761@gmail.com>
+ * Copyright (c) 2020. João Paulo Sena <joaopaulo761@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -26,25 +26,20 @@ import android.view.View
 import android.view.View.INVISIBLE
 import android.view.View.VISIBLE
 import android.view.ViewGroup
+import androidx.fragment.app.activityViewModels
+import com.forcetower.core.lifecycle.EventObserver
 import com.forcetower.uefs.R
-import com.forcetower.uefs.core.injection.Injectable
 import com.forcetower.uefs.core.storage.resource.Status
-import com.forcetower.uefs.core.vm.EventObserver
-import com.forcetower.uefs.core.vm.UViewModelFactory
 import com.forcetower.uefs.databinding.DialogInvalidAccessBinding
 import com.forcetower.uefs.feature.shared.RoundedDialog
-import com.forcetower.uefs.feature.shared.extensions.provideActivityViewModel
-import javax.inject.Inject
+import dagger.hilt.android.AndroidEntryPoint
 
-class InvalidAccessDialog : RoundedDialog(), Injectable {
-    @Inject
-    lateinit var factory: UViewModelFactory
-
+@AndroidEntryPoint
+class InvalidAccessDialog : RoundedDialog() {
     private lateinit var binding: DialogInvalidAccessBinding
-    private lateinit var viewModel: HomeViewModel
+    private val viewModel: HomeViewModel by activityViewModels()
 
     override fun onChildCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View? {
-        viewModel = provideActivityViewModel(factory)
         return DialogInvalidAccessBinding.inflate(inflater, container, false).also {
             binding = it
             it.btnCancel.setOnClickListener {
@@ -57,35 +52,38 @@ class InvalidAccessDialog : RoundedDialog(), Injectable {
         }.root
     }
 
-    override fun onActivityCreated(savedInstanceState: Bundle?) {
-        super.onActivityCreated(savedInstanceState)
-        viewModel.passwordChangeProcess.observe(this, EventObserver {
-            if (it.status == Status.SUCCESS) {
-                binding.run {
-                    btnChange.isEnabled = true
-                    btnCancel.isEnabled = true
-                    pbOperation.visibility = INVISIBLE
-                }
-
-                if (it.data == true) {
-                    viewModel.showSnack(getString(R.string.invalid_access_password_change))
-                    dismiss()
-                } else if (it.data == false) {
-                    binding.etPassword.run {
-                        error = getString(R.string.invalid_access_new_password_is_incorrect)
-                        requestFocus()
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+        viewModel.passwordChangeProcess.observe(
+            viewLifecycleOwner,
+            EventObserver {
+                if (it.status == Status.SUCCESS) {
+                    binding.run {
+                        btnChange.isEnabled = true
+                        btnCancel.isEnabled = true
+                        pbOperation.visibility = INVISIBLE
                     }
+
+                    if (it.data == true) {
+                        viewModel.showSnack(getString(R.string.invalid_access_password_change))
+                        dismiss()
+                    } else if (it.data == false) {
+                        binding.etPassword.run {
+                            error = getString(R.string.invalid_access_new_password_is_incorrect)
+                            requestFocus()
+                        }
+                    }
+                } else if (it.status == Status.LOADING) {
+                    binding.run {
+                        btnChange.isEnabled = false
+                        btnCancel.isEnabled = false
+                        pbOperation.visibility = VISIBLE
+                    }
+                } else {
+                    dismiss()
                 }
-            } else if (it.status == Status.LOADING) {
-                binding.run {
-                    btnChange.isEnabled = false
-                    btnCancel.isEnabled = false
-                    pbOperation.visibility = VISIBLE
-                }
-            } else {
-                dismiss()
             }
-        })
+        )
     }
 
     private fun preparePassword() {

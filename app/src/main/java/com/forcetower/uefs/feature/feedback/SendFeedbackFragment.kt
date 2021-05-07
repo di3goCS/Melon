@@ -2,7 +2,7 @@
  * This file is part of the UNES Open Source Project.
  * UNES is licensed under the GNU GPLv3.
  *
- * Copyright (c) 2019.  João Paulo Sena <joaopaulo761@gmail.com>
+ * Copyright (c) 2020. João Paulo Sena <joaopaulo761@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,31 +20,45 @@
 
 package com.forcetower.uefs.feature.feedback
 
+import android.app.Dialog
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import androidx.appcompat.view.ContextThemeWrapper
-import com.forcetower.uefs.R
-import com.forcetower.uefs.core.injection.Injectable
-import com.forcetower.uefs.core.vm.EventObserver
-import com.forcetower.uefs.core.vm.UViewModelFactory
+import android.widget.FrameLayout
+import androidx.fragment.app.viewModels
+import com.forcetower.core.lifecycle.EventObserver
 import com.forcetower.uefs.databinding.FragmentSendFeedbackBinding
-import com.forcetower.uefs.feature.shared.extensions.provideViewModel
+import com.google.android.material.R
+import com.google.android.material.bottomsheet.BottomSheetBehavior
+import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
-import javax.inject.Inject
+import dagger.hilt.android.AndroidEntryPoint
+import timber.log.Timber
 
-class SendFeedbackFragment : BottomSheetDialogFragment(), Injectable {
-    @Inject
-    lateinit var factory: UViewModelFactory
-    lateinit var viewModel: FeedbackViewModel
-    lateinit var binding: FragmentSendFeedbackBinding
+@AndroidEntryPoint
+class SendFeedbackFragment : BottomSheetDialogFragment() {
+    private val viewModel: FeedbackViewModel by viewModels()
+    private lateinit var binding: FragmentSendFeedbackBinding
+
+    override fun onCreateDialog(savedInstanceState: Bundle?): Dialog {
+        val sheetDialog = super.onCreateDialog(savedInstanceState) as BottomSheetDialog
+
+        try {
+            sheetDialog.setOnShowListener {
+                val bottomSheet = sheetDialog.findViewById<FrameLayout>(R.id.design_bottom_sheet)!!
+                val behavior = BottomSheetBehavior.from(bottomSheet)
+                behavior.skipCollapsed = true
+                behavior.state = BottomSheetBehavior.STATE_EXPANDED
+            }
+        } catch (t: Throwable) {
+            Timber.d(t, "Hum...")
+        }
+        return sheetDialog
+    }
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View? {
-        val contextThemeWrapper = ContextThemeWrapper(activity, R.style.UTheme)
-        val themedInflater = inflater.cloneInContext(contextThemeWrapper)
-        viewModel = provideViewModel(factory)
-        return FragmentSendFeedbackBinding.inflate(themedInflater, container, false).also {
+        return FragmentSendFeedbackBinding.inflate(inflater, container, false).also {
             binding = it
         }.root
     }
@@ -54,18 +68,24 @@ class SendFeedbackFragment : BottomSheetDialogFragment(), Injectable {
             interactor = viewModel
             lifecycleOwner = this@SendFeedbackFragment
         }
-        viewModel.textError.observe(this, EventObserver {
-            if (it == null) {
-                binding.textFeedback.error = ""
-            } else {
-                binding.textFeedback.error = it
+        viewModel.textError.observe(
+            viewLifecycleOwner,
+            EventObserver {
+                if (it == null) {
+                    binding.textFeedback.error = ""
+                } else {
+                    binding.textFeedback.error = it
+                }
             }
-        })
+        )
 
-        viewModel.sendFeedback.observe(this, EventObserver {
-            if (it) {
-                dismiss()
+        viewModel.sendFeedback.observe(
+            viewLifecycleOwner,
+            EventObserver {
+                if (it) {
+                    dismiss()
+                }
             }
-        })
+        )
     }
 }

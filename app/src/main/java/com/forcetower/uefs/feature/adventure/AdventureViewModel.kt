@@ -2,7 +2,7 @@
  * This file is part of the UNES Open Source Project.
  * UNES is licensed under the GNU GPLv3.
  *
- * Copyright (c) 2019.  João Paulo Sena <joaopaulo761@gmail.com>
+ * Copyright (c) 2020. João Paulo Sena <joaopaulo761@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -24,11 +24,14 @@ import android.location.Location
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
+import com.forcetower.core.lifecycle.Event
 import com.forcetower.uefs.core.model.service.AchDistance
+import com.forcetower.uefs.core.model.service.Achievement
 import com.forcetower.uefs.core.storage.repository.AdventureRepository
-import com.forcetower.uefs.core.vm.Event
+import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 
+@HiltViewModel
 class AdventureViewModel @Inject constructor(
     private val repository: AdventureRepository
 ) : ViewModel(), AdventureInteractor {
@@ -73,11 +76,15 @@ class AdventureViewModel @Inject constructor(
         return repository.checkAchievements()
     }
 
+    fun checkServerAchievements(): LiveData<List<Achievement>> {
+        return repository.checkServerAchievements()
+    }
+
     fun checkNotConnectedAchievements(): LiveData<Map<Int, Int>> {
         return repository.justCheckAchievements()
     }
 
-    fun onReceiveLocation(location: Location): List<AchDistance> {
+    fun onReceiveLocation(location: Location?): List<AchDistance> {
         return repository.matchesAnyAchievement(location)
     }
 }

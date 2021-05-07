@@ -2,7 +2,7 @@
  * This file is part of the UNES Open Source Project.
  * UNES is licensed under the GNU GPLv3.
  *
- * Copyright (c) 2019.  João Paulo Sena <joaopaulo761@gmail.com>
+ * Copyright (c) 2020. João Paulo Sena <joaopaulo761@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -24,24 +24,20 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import androidx.fragment.app.activityViewModels
 import androidx.lifecycle.Observer
 import androidx.navigation.fragment.findNavController
 import com.forcetower.uefs.R
-import com.forcetower.uefs.core.injection.Injectable
-import com.forcetower.uefs.core.vm.UViewModelFactory
 import com.forcetower.uefs.databinding.FragmentDarkThemeUnlockBinding
 import com.forcetower.uefs.feature.shared.UFragment
-import com.forcetower.uefs.feature.shared.extensions.provideActivityViewModel
-import javax.inject.Inject
+import dagger.hilt.android.AndroidEntryPoint
 
-class DarkThemeUnlockFragment : UFragment(), Injectable {
-    @Inject
-    lateinit var factory: UViewModelFactory
-    lateinit var viewModel: DarkThemeViewModel
-    lateinit var binding: FragmentDarkThemeUnlockBinding
+@AndroidEntryPoint
+class DarkThemeUnlockFragment : UFragment() {
+    private val viewModel: DarkThemeViewModel by activityViewModels()
+    private lateinit var binding: FragmentDarkThemeUnlockBinding
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View? {
-        viewModel = provideActivityViewModel(factory)
         return FragmentDarkThemeUnlockBinding.inflate(inflater, container, false).also {
             binding = it
         }.root
@@ -52,7 +48,7 @@ class DarkThemeUnlockFragment : UFragment(), Injectable {
         binding.preconditionsRecycler.run {
             adapter = preconditionsAdapter
         }
-        viewModel.preconditions.observe(this, Observer { preconditionsAdapter.submitList(it) })
+        viewModel.preconditions.observe(viewLifecycleOwner, Observer { preconditionsAdapter.submitList(it) })
 
         binding.inviteToDark.setOnClickListener {
             findNavController().navigate(R.id.action_dark_event_to_dark_invite)

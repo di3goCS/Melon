@@ -2,7 +2,7 @@
  * This file is part of the UNES Open Source Project.
  * UNES is licensed under the GNU GPLv3.
  *
- * Copyright (c) 2019.  João Paulo Sena <joaopaulo761@gmail.com>
+ * Copyright (c) 2020. João Paulo Sena <joaopaulo761@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -125,11 +125,11 @@ private object DiffCallback : DiffUtil.ItemCallback<Any>() {
             }
             oldItem is TeacherWrapper && newItem is TeacherWrapper -> {
                 oldItem.groupId == newItem.groupId &&
-                        oldItem.teacher.teacherId == newItem.teacher.teacherId
+                    oldItem.teacher.teacherId == newItem.teacher.teacherId
             }
             oldItem is DisciplineWrapper && newItem is DisciplineWrapper -> {
                 oldItem.groupId == newItem.groupId &&
-                        oldItem.discipline.disciplineId == newItem.discipline.disciplineId
+                    oldItem.discipline.disciplineId == newItem.discipline.disciplineId
             }
             else -> false
         }

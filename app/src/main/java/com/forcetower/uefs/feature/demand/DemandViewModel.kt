@@ -2,7 +2,7 @@
  * This file is part of the UNES Open Source Project.
  * UNES is licensed under the GNU GPLv3.
  *
- * Copyright (c) 2019.  João Paulo Sena <joaopaulo761@gmail.com>
+ * Copyright (c) 2020. João Paulo Sena <joaopaulo761@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -26,16 +26,18 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MediatorLiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
+import com.forcetower.core.lifecycle.Event
 import com.forcetower.sagres.database.model.SagresDemandOffer
 import com.forcetower.uefs.R
 import com.forcetower.uefs.core.storage.repository.DemandRepository
 import com.forcetower.uefs.core.storage.resource.Resource
 import com.forcetower.uefs.core.storage.resource.Status
-import com.forcetower.uefs.core.vm.Event
 import com.google.firebase.analytics.FirebaseAnalytics
+import dagger.hilt.android.lifecycle.HiltViewModel
 import timber.log.Timber
 import javax.inject.Inject
 
+@HiltViewModel
 class DemandViewModel @Inject constructor(
     private val repository: DemandRepository,
     private val context: Context,
@@ -85,17 +87,17 @@ class DemandViewModel @Inject constructor(
                 if (it.status == Status.SUCCESS) {
                     analytics.logEvent("demand_loaded_disciplines_success", null)
                 } else {
-                    analytics.logEvent("demand_loaded_disciplines_failed", bundleOf(
-                        "code" to it.code,
-                        "message" to (it.message ?: "nothing at all")
-                    ))
+                    analytics.logEvent(
+                        "demand_loaded_disciplines_failed",
+                        bundleOf(
+                            "code" to it.code,
+                            "message" to (it.message ?: "nothing at all")
+                        )
+                    )
                 }
                 _loading.value = false
             }
         }
-    }
-
-    init {
     }
 
     override fun onOfferClick(offer: SagresDemandOffer) {

@@ -2,7 +2,7 @@
  * This file is part of the UNES Open Source Project.
  * UNES is licensed under the GNU GPLv3.
  *
- * Copyright (c) 2019.  João Paulo Sena <joaopaulo761@gmail.com>
+ * Copyright (c) 2020. João Paulo Sena <joaopaulo761@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -26,29 +26,22 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
-import androidx.appcompat.view.ContextThemeWrapper
+import androidx.fragment.app.activityViewModels
 import com.forcetower.uefs.R
-import com.forcetower.uefs.core.injection.Injectable
-import com.forcetower.uefs.core.vm.UViewModelFactory
 import com.forcetower.uefs.databinding.FragmentLogoutConfirmationBinding
-import com.forcetower.uefs.feature.shared.extensions.provideActivityViewModel
 import com.google.android.material.bottomsheet.BottomSheetBehavior
-import com.google.android.material.bottomsheet.BottomSheetDialogFragment
-import javax.inject.Inject
 import com.google.android.material.bottomsheet.BottomSheetDialog
+import com.google.android.material.bottomsheet.BottomSheetDialogFragment
+import dagger.hilt.android.AndroidEntryPoint
 import timber.log.Timber
 
-class LogoutConfirmationFragment : BottomSheetDialogFragment(), Injectable {
-    @Inject
-    lateinit var factory: UViewModelFactory
-    private lateinit var viewModel: HomeViewModel
+@AndroidEntryPoint
+class LogoutConfirmationFragment : BottomSheetDialogFragment() {
+    private val viewModel: HomeViewModel by activityViewModels()
     private lateinit var binding: FragmentLogoutConfirmationBinding
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View? {
-        val contextThemeWrapper = ContextThemeWrapper(activity, R.style.UTheme)
-        val themedInflater = inflater.cloneInContext(contextThemeWrapper)
-        viewModel = provideActivityViewModel(factory)
-        return FragmentLogoutConfirmationBinding.inflate(themedInflater, container, false).also {
+        return FragmentLogoutConfirmationBinding.inflate(inflater, container, false).also {
             binding = it
         }.apply {
             btnCancel.setOnClickListener { dismiss() }

@@ -2,7 +2,7 @@
  * This file is part of the UNES Open Source Project.
  * UNES is licensed under the GNU GPLv3.
  *
- * Copyright (c) 2019.  João Paulo Sena <joaopaulo761@gmail.com>
+ * Copyright (c) 2020. João Paulo Sena <joaopaulo761@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -29,12 +29,12 @@ import androidx.work.WorkManager
 
 fun OneTimeWorkRequest.enqueueUnique(context: Context, name: String, replace: Boolean = true) {
     WorkManager.getInstance(context).beginUniqueWork(
-            name,
-            if (replace)
-                ExistingWorkPolicy.REPLACE
-            else
-                ExistingWorkPolicy.KEEP,
-            this
+        name,
+        if (replace)
+            ExistingWorkPolicy.REPLACE
+        else
+            ExistingWorkPolicy.KEEP,
+        this
     ).enqueue()
 }
 
@@ -44,11 +44,11 @@ fun OneTimeWorkRequest.enqueue(context: Context) {
 
 fun PeriodicWorkRequest.enqueueUnique(context: Context, name: String, replace: Boolean = true) {
     WorkManager.getInstance(context).enqueueUniquePeriodicWork(
-            name,
-            if (replace)
-                ExistingPeriodicWorkPolicy.REPLACE
-            else
-                ExistingPeriodicWorkPolicy.KEEP,
-            this
+        name,
+        if (replace)
+            ExistingPeriodicWorkPolicy.REPLACE
+        else
+            ExistingPeriodicWorkPolicy.KEEP,
+        this
     )
 }

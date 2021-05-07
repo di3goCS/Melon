@@ -2,7 +2,7 @@
  * This file is part of the UNES Open Source Project.
  * UNES is licensed under the GNU GPLv3.
  *
- * Copyright (c) 2019.  João Paulo Sena <joaopaulo761@gmail.com>
+ * Copyright (c) 2020. João Paulo Sena <joaopaulo761@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,7 +22,6 @@ package com.forcetower.uefs.core.storage.repository
 
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
-import com.crashlytics.android.Crashlytics
 import com.forcetower.uefs.core.model.service.SyncFrequency
 import com.google.firebase.firestore.CollectionReference
 import timber.log.Timber
@@ -42,19 +41,19 @@ class SyncFrequencyRepository @Inject constructor(
             when {
                 snapshot != null -> {
                     val frequencies = snapshot.documents
-                            .map { it.toObject(SyncFrequency::class.java)!! }
-                            .sortedBy { it.value }
-                            .toMutableList()
+                        .map { it.toObject(SyncFrequency::class.java)!! }
+                        .sortedBy { it.value }
+                        .toMutableList()
                     if (frequencies.isEmpty()) { frequencies += SyncFrequency() }
                     result.postValue(frequencies)
                 }
                 exception != null -> {
                     Timber.d("Exception: ${exception.message}")
-                    Crashlytics.logException(exception)
+                    Timber.e(exception)
                     result.postValue(listOf(SyncFrequency()))
                 }
                 else -> {
-                    Crashlytics.log("Something really odd happened")
+                    Timber.e("Something really odd happened")
                     result.postValue(listOf(SyncFrequency()))
                 }
             }

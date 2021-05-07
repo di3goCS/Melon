@@ -2,7 +2,7 @@
  * This file is part of the UNES Open Source Project.
  * UNES is licensed under the GNU GPLv3.
  *
- * Copyright (c) 2019.  João Paulo Sena <joaopaulo761@gmail.com>
+ * Copyright (c) 2020. João Paulo Sena <joaopaulo761@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,8 +21,8 @@
 package com.forcetower.uefs.core.util
 
 import android.util.Patterns
-import java.util.ArrayList
 import java.text.Normalizer
+import java.util.ArrayList
 
 fun String.getLinks(): List<String> {
     val matcher = Patterns.WEB_URL.matcher(this)
@@ -44,6 +44,6 @@ fun String.unaccent(): String {
 
 fun removeAccents(src: String): String {
     return Normalizer
-            .normalize(src, Normalizer.Form.NFD)
-            .replace(Regex("[^\\p{ASCII}]"), "")
+        .normalize(src, Normalizer.Form.NFD)
+        .replace(Regex("[^\\p{ASCII}]"), "")
 }

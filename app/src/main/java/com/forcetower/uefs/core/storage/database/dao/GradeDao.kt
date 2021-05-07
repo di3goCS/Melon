@@ -2,7 +2,7 @@
  * This file is part of the UNES Open Source Project.
  * UNES is licensed under the GNU GPLv3.
  *
- * Copyright (c) 2019.  João Paulo Sena <joaopaulo761@gmail.com>
+ * Copyright (c) 2020. João Paulo Sena <joaopaulo761@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -33,8 +33,10 @@ import com.forcetower.uefs.core.model.unes.Discipline
 import com.forcetower.uefs.core.model.unes.Grade
 import com.forcetower.uefs.core.model.unes.Profile
 import com.forcetower.uefs.core.model.unes.Semester
-import com.forcetower.uefs.core.storage.database.accessors.GradeWithClassStudent
+import com.forcetower.uefs.core.storage.database.aggregation.GradeWithClassStudent
+import dev.forcetower.breaker.model.ClassEvaluation
 import timber.log.Timber
+import java.time.ZonedDateTime
 
 @Dao
 abstract class GradeDao {
@@ -79,25 +81,28 @@ abstract class GradeDao {
             }
 
             val finalScore = it.finalScore
-                    .replace(",", ".")
-                    .replace("-", "")
-                    .replace("*", "")
+                .replace(",", ".")
+                .replace("-", "")
+                .replace("*", "")
 
             val partialMean = it.partialMean
-                    .replace(",", ".")
-                    .replace("-", "")
-                    .replace("*", "")
+                .replace(",", ".")
+                .replace("-", "")
+                .replace("*", "")
             val partialScore = partialMean.toDoubleOrNull()
             val score = finalScore.toDoubleOrNull()
 
             var clazz = getClass(code, it.semesterId)
             if (clazz != null) {
+                // this is the default scenario, class already exists and we are good to go
                 if (clazz.scheduleOnly) updateClassScheduleOnly(clazz.uid, false)
                 if (score != null) updateClassScore(clazz.uid, score)
                 if (partialScore != null) updateClassPartialScore(clazz.uid, partialScore)
 
                 prepareInsertion(clazz, it, notify)
             } else {
+                // this is the less optimal scenario, you have the grades, but nothing else.
+                // the app must create all now!
                 Timber.d("<grades_clazz_404> :: Clazz not found for ${code}_${it.semesterId}")
                 val index = nameOne.lastIndexOf("(")
                 val realIndex = if (index == -1) nameOne.length else index
@@ -150,6 +155,8 @@ abstract class GradeDao {
 
     private fun prepareInsertion(clazz: Class, it: SagresGrade, notify: Boolean) {
         // This is used to select the best grade when multiple ones with same identifier is found
+
+        // This part filters out the useless grades we get from html
         val values = HashMap<String, SagresGradeInfo>()
         it.values.forEach { g ->
             var grade = values["${g.grouping}<><>${g.name}"]
@@ -163,19 +170,22 @@ abstract class GradeDao {
             values["${g.grouping}<><>${g.name}"] = grade
         }
 
+        // this actually inserts stuff into the database
         values.values.forEach { i ->
             val grade = getNamedGradeDirect(clazz.uid, i.name, i.grouping)
             if (grade == null) {
                 val notified = if (i.hasGrade()) 3 else 1
-                insert(Grade(
-                    classId = clazz.uid,
-                    name = i.name,
-                    date = i.date,
-                    notified = if (notify) notified else 0,
-                    grade = i.grade,
-                    grouping = i.grouping,
-                    groupingName = i.groupingName
-                ))
+                insert(
+                    Grade(
+                        classId = clazz.uid,
+                        name = i.name,
+                        date = i.date,
+                        notified = if (notify) notified else 0,
+                        grade = i.grade,
+                        grouping = i.grouping,
+                        groupingName = i.groupingName
+                    )
+                )
             } else {
                 var shouldUpdate = true
                 if (grade.hasGrade() && i.hasGrade() && grade.grade != i.grade) {
@@ -201,6 +211,83 @@ abstract class GradeDao {
 
                 grade.notified = if (notify) grade.notified else 0
                 if (shouldUpdate) update(grade)
+            }
+        }
+    }
+
+    @Transaction
+    open suspend fun putGradesNewWay(classId: Long, evaluations: List<ClassEvaluation>, notify: Boolean = true) {
+        evaluations.forEach { evaluation ->
+            val grades = evaluation.grades
+            val named = grades.groupBy { it.name }
+            val remapped = named.entries.map { entry ->
+                if (entry.value.size == 1) {
+                    entry.value[0]
+                } else {
+                    // Some disciplines still shows more than one practice.
+                    // this could be removed iof we show all with the same name to the user,
+                    // but that would trigger notifications to classes we don't need.
+                    // There are 4 solutions:
+                    // - remove date changes notifications, and show everything
+                    // - remove date changes notifications, show only one grade, but date might be incorrect
+                    // - show everything
+                    // - show only one, but date might be incorrect
+                    // for now, UNES will use option 4, prioritizing earlier dates (better study for early test)
+                    entry.value.minByOrNull {
+                        when {
+                            it.value != null -> Int.MIN_VALUE
+                            it.date != null -> ZonedDateTime.parse(it.date!!).toEpochSecond().toInt()
+                            else -> Int.MAX_VALUE
+                        }
+                    }!!
+                }
+            }
+
+            remapped.forEach { grade ->
+                Timber.d("Attempt to insert ${evaluation.name} ${grade.name} ${grade.value}")
+                val current = getNamedGradeDirect(classId, "${grade.nameShort} - ${grade.name}", evaluation.name.hashCode())
+                Timber.d("Attempt to override ${current?.name} ${current?.groupingName} ${current?.grade}")
+                Timber.d("Current $current")
+                if (current == null) {
+                    val notified = if (grade.hasGrade()) 3 else 1
+                    insert(
+                        Grade(
+                            classId = classId,
+                            name = "${grade.nameShort} - ${grade.name}",
+                            notified = if (notify) notified else 0,
+                            grade = grade.value?.toString(),
+                            grouping = evaluation.name.hashCode(),
+                            groupingName = evaluation.name ?: "Notas",
+                            date = grade.date
+                        )
+                    )
+                } else {
+                    var shouldUpdate = true
+                    val score = grade.value?.toString() ?: ""
+                    if (current.hasGrade() && grade.hasGrade() && score != current.grade) {
+                        current.notified = 4
+                        current.grade = score
+                        current.date = grade.date
+                    } else if (!current.hasGrade() && grade.hasGrade()) {
+                        current.notified = 3
+                        current.grade = score
+                        current.date = grade.date
+                    } else if (!current.hasGrade() && !grade.hasGrade() && current.date != grade.date) {
+                        current.notified = 2
+                        current.date = grade.date
+                    } else {
+                        shouldUpdate = false
+                        Timber.d("No changes detected between ${current.name} ${current.grouping} and ${grade.name} ${evaluation.name.hashCode()}")
+                    }
+
+                    if (current.groupingName != evaluation.name) {
+                        shouldUpdate = true
+                        current.groupingName = evaluation.name ?: "Notas"
+                    }
+
+                    current.notified = if (notify) current.notified else 0
+                    if (shouldUpdate) update(current)
+                }
             }
         }
     }

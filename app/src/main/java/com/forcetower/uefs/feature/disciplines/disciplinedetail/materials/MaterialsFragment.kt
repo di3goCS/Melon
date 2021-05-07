@@ -2,7 +2,7 @@
  * This file is part of the UNES Open Source Project.
  * UNES is licensed under the GNU GPLv3.
  *
- * Copyright (c) 2019.  João Paulo Sena <joaopaulo761@gmail.com>
+ * Copyright (c) 2020. João Paulo Sena <joaopaulo761@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -27,25 +27,21 @@ import android.view.View.GONE
 import android.view.View.VISIBLE
 import android.view.ViewGroup
 import androidx.core.os.bundleOf
+import androidx.fragment.app.activityViewModels
 import androidx.lifecycle.Observer
 import androidx.recyclerview.widget.DividerItemDecoration
-import com.forcetower.uefs.core.injection.Injectable
-import com.forcetower.uefs.core.vm.UViewModelFactory
 import com.forcetower.uefs.databinding.FragmentDisciplineAttachmentsBinding
 import com.forcetower.uefs.feature.disciplines.DisciplineViewModel
 import com.forcetower.uefs.feature.disciplines.disciplinedetail.DisciplineDetailsActivity
 import com.forcetower.uefs.feature.shared.UFragment
-import com.forcetower.uefs.feature.shared.extensions.provideActivityViewModel
-import javax.inject.Inject
+import dagger.hilt.android.AndroidEntryPoint
 
-class MaterialsFragment : UFragment(), Injectable {
-    @Inject
-    lateinit var factory: UViewModelFactory
-    private lateinit var viewModel: DisciplineViewModel
+@AndroidEntryPoint
+class MaterialsFragment : UFragment() {
+    private val viewModel: DisciplineViewModel by activityViewModels()
     private lateinit var binding: FragmentDisciplineAttachmentsBinding
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View? {
-        viewModel = provideActivityViewModel(factory)
         return FragmentDisciplineAttachmentsBinding.inflate(inflater, container, false).also {
             binding = it
         }.root
@@ -64,16 +60,19 @@ class MaterialsFragment : UFragment(), Injectable {
             }
         }
 
-        viewModel.materials.observe(this, Observer {
-            materialsAdapter.submitList(it)
-            if (it.isEmpty()) {
-                binding.layoutNoData.visibility = VISIBLE
-                binding.attachmentsRecycler.visibility = GONE
-            } else {
-                binding.layoutNoData.visibility = GONE
-                binding.attachmentsRecycler.visibility = VISIBLE
+        viewModel.materials.observe(
+            viewLifecycleOwner,
+            Observer {
+                materialsAdapter.submitList(it)
+                if (it.isEmpty()) {
+                    binding.layoutNoData.visibility = VISIBLE
+                    binding.attachmentsRecycler.visibility = GONE
+                } else {
+                    binding.layoutNoData.visibility = GONE
+                    binding.attachmentsRecycler.visibility = VISIBLE
+                }
             }
-        })
+        )
     }
 
     companion object {

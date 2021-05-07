@@ -2,7 +2,7 @@
  * This file is part of the UNES Open Source Project.
  * UNES is licensed under the GNU GPLv3.
  *
- * Copyright (c) 2019.  João Paulo Sena <joaopaulo761@gmail.com>
+ * Copyright (c) 2020. João Paulo Sena <joaopaulo761@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -37,6 +37,7 @@ class NotificationHelper(val context: Context) : ContextWrapper(context) {
         if (!VersionUtils.isOreo()) return
 
         val cGrades = NotificationChannelGroup(CHANNEL_GROUP_GRADES_ID, getString(R.string.channel_group_grades))
+        val cAbsences = NotificationChannelGroup(CHANNEL_GROUP_ABSENCE_ID, getString(R.string.channel_group_absences))
         val cMessages = NotificationChannelGroup(CHANNEL_GROUP_MESSAGES_ID, getString(R.string.channel_group_messages))
         val cGeneral = NotificationChannelGroup(CHANNEL_GROUP_GENERAL_ID, getString(R.string.channel_group_general))
         val cEvents = NotificationChannelGroup(CHANNEL_GROUP_EVENTS_ID, getString(R.string.channel_group_events))
@@ -45,7 +46,7 @@ class NotificationHelper(val context: Context) : ContextWrapper(context) {
         val cSocial = NotificationChannelGroup(CHANNEL_GROUP_SOCIAL_ID, context.getString(R.string.channel_group_social_network))
 
         val manager = getManager()
-        manager.createNotificationChannelGroups(listOf(cGrades, cMessages, cGeneral, cEvents, cServices, cDisciplines, cSocial))
+        manager.createNotificationChannelGroups(listOf(cGrades, cMessages, cGeneral, cEvents, cServices, cDisciplines, cSocial, cAbsences))
 
         val messages = createChannel(CHANNEL_MESSAGES_TEACHER_ID, getString(R.string.channel_messages_teachers), NotificationManager.IMPORTANCE_DEFAULT)
         val uefsMsg = createChannel(CHANNEL_MESSAGES_UEFS_ID, getString(R.string.channel_messages_uefs), NotificationManager.IMPORTANCE_DEFAULT)
@@ -53,10 +54,13 @@ class NotificationHelper(val context: Context) : ContextWrapper(context) {
         val dateChanged = createChannel(CHANNEL_GRADES_DATE_CHANGED_ID, getString(R.string.channel_grades_date_changed), NotificationManager.IMPORTANCE_DEFAULT)
         val valueChanged = createChannel(CHANNEL_GRADES_VALUE_CHANGED_ID, getString(R.string.channel_grades_value_changed), NotificationManager.IMPORTANCE_DEFAULT)
         val created = createChannel(CHANNEL_GRADES_CREATED_ID, getString(R.string.channel_grades_created), NotificationManager.IMPORTANCE_DEFAULT)
+        val absenceCreate = createChannel(CHANNEL_ABSENCE_CREATE_ID, getString(R.string.channel_absence_created), NotificationManager.IMPORTANCE_DEFAULT)
+        val absenceRemove = createChannel(CHANNEL_ABSENCE_REMOVE_ID, getString(R.string.channel_absence_removed), NotificationManager.IMPORTANCE_DEFAULT)
         val warnings = createChannel(CHANNEL_GENERAL_WARNINGS_ID, getString(R.string.warnings), NotificationManager.IMPORTANCE_DEFAULT)
         val remote = createChannel(CHANNEL_GENERAL_REMOTE_ID, getString(R.string.remote), NotificationManager.IMPORTANCE_DEFAULT)
         val eventGen = createChannel(CHANNEL_EVENTS_GENERAL_ID, getString(R.string.channel_events_general), NotificationManager.IMPORTANCE_DEFAULT)
         val bigTray = createChannel(CHANNEL_GENERAL_BIGTRAY_ID, getString(R.string.channel_big_tray_quota), NotificationManager.IMPORTANCE_LOW)
+        val serviceFrg = createChannel(CHANNEL_GENERAL_SYNC_SERVICE_FOREGROUND, getString(R.string.channel_service_sync_foreground), NotificationManager.IMPORTANCE_LOW)
         val commonLow = createChannel(CHANNEL_GENERAL_COMMON_LOW_ID, getString(R.string.channel_common_low), NotificationManager.IMPORTANCE_LOW)
         val commonDef = createChannel(CHANNEL_GENERAL_COMMON_HIG_ID, getString(R.string.channel_common_hig), NotificationManager.IMPORTANCE_HIGH)
         val svcCreate = createChannel(CHANNEL_SVC_REQ_CREATE_ID, getString(R.string.channel_svc_req_create), NotificationManager.IMPORTANCE_LOW)
@@ -76,10 +80,13 @@ class NotificationHelper(val context: Context) : ContextWrapper(context) {
         bigTray.group = CHANNEL_GROUP_GENERAL_ID
         commonLow.group = CHANNEL_GROUP_GENERAL_ID
         commonDef.group = CHANNEL_GROUP_GENERAL_ID
+        serviceFrg.group = CHANNEL_GROUP_GENERAL_ID
         svcCreate.group = CHANNEL_GROUP_SERVICE_REQUEST_ID
         svcUpdate.group = CHANNEL_GROUP_SERVICE_REQUEST_ID
         materialPost.group = CHANNEL_GROUP_DISCIPLINE_ID
         socialStatements.group = CHANNEL_GROUP_SOCIAL_ID
+        absenceCreate.group = CHANNEL_GROUP_ABSENCE_ID
+        absenceRemove.group = CHANNEL_GROUP_ABSENCE_ID
 
         manager.createNotificationChannel(messages)
         manager.createNotificationChannel(uefsMsg)
@@ -91,12 +98,15 @@ class NotificationHelper(val context: Context) : ContextWrapper(context) {
         manager.createNotificationChannel(remote)
         manager.createNotificationChannel(eventGen)
         manager.createNotificationChannel(bigTray)
+        manager.createNotificationChannel(serviceFrg)
         manager.createNotificationChannel(commonLow)
         manager.createNotificationChannel(commonDef)
         manager.createNotificationChannel(svcCreate)
         manager.createNotificationChannel(svcUpdate)
         manager.createNotificationChannel(materialPost)
         manager.createNotificationChannel(socialStatements)
+        manager.createNotificationChannel(absenceCreate)
+        manager.createNotificationChannel(absenceRemove)
 
         manager.deleteNotificationChannel(CHANNEL_MESSAGES_DCE_ID)
         manager.deleteNotificationChannel(CHANNEL_MESSAGES_SAGRES_ID)
@@ -125,6 +135,7 @@ class NotificationHelper(val context: Context) : ContextWrapper(context) {
         // Notification Groups
         const val CHANNEL_GROUP_MESSAGES_ID = "com.forcetower.uefs.MESSAGES"
         const val CHANNEL_GROUP_GRADES_ID = "com.forcetower.uefs.GRADES"
+        const val CHANNEL_GROUP_ABSENCE_ID = "com.forcetower.uefs.GRADES"
         const val CHANNEL_GROUP_GENERAL_ID = "com.forcetower.uefs.GENERAL"
         const val CHANNEL_GROUP_EVENTS_ID = "com.forcetower.uefs.EVENTS"
         const val CHANNEL_GROUP_SERVICE_REQUEST_ID = "com.forcetower.uefs.SERVICE_REQUEST"
@@ -137,11 +148,14 @@ class NotificationHelper(val context: Context) : ContextWrapper(context) {
         const val CHANNEL_GRADES_CREATED_ID = "com.forcetower.uefs.GRADES.CREATE"
         const val CHANNEL_GRADES_DATE_CHANGED_ID = "com.forcetower.uefs.GRADES.DATE_CHANGE"
         const val CHANNEL_GRADES_VALUE_CHANGED_ID = "com.forcetower.uefs.GRADES.VALUE_CHANGED"
+        const val CHANNEL_ABSENCE_CREATE_ID = "com.forcetower.uefs.ABSENCE.CREATED"
+        const val CHANNEL_ABSENCE_REMOVE_ID = "com.forcetower.uefs.ABSENCE.REMOVED"
         const val CHANNEL_GENERAL_WARNINGS_ID = "com.forcetower.uefs.GENERAL.WARNINGS"
         const val CHANNEL_GENERAL_COMMON_LOW_ID = "com.forcetower.uefs.GENERAL.COMMON.LOW"
         const val CHANNEL_GENERAL_COMMON_HIG_ID = "com.forcetower.uefs.GENERAL.COMMON.HIGH"
         const val CHANNEL_GENERAL_REMOTE_ID = "com.forcetower.uefs.GENERAL.REMOTE"
         const val CHANNEL_GENERAL_BIGTRAY_ID = "com.forcetower.uefs.GENERAL.BIGTRAY"
+        const val CHANNEL_GENERAL_SYNC_SERVICE_FOREGROUND = "com.forcetower.uefs.SYNC.FOREGROUND"
         const val CHANNEL_EVENTS_GENERAL_ID = "com.forcetower.uefs.EVENTS.GENERAL"
         const val CHANNEL_SVC_REQ_CREATE_ID = "com.forcetower.uefs.SERVICE_REQUEST.CREATE"
         const val CHANNEL_SVC_REQ_UPDATE_ID = "com.forcetower.uefs.SERVICE_REQUEST.UPDATE"

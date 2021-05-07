@@ -1,29 +1,48 @@
+/*
+ * This file is part of the UNES Open Source Project.
+ * UNES is licensed under the GNU GPLv3.
+ *
+ * Copyright (c) 2020. João Paulo Sena <joaopaulo761@gmail.com>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+
 package com.forcetower.uefs.core.work.statement
 
 import android.content.Context
 import androidx.annotation.IntRange
+import androidx.hilt.work.HiltWorker
 import androidx.work.Constraints
 import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.Worker
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
-import com.forcetower.uefs.UApplication
 import com.forcetower.uefs.core.model.unes.ProfileStatement
 import com.forcetower.uefs.core.storage.repository.ProfileRepository
 import com.forcetower.uefs.core.work.enqueue
+import dagger.assisted.Assisted
+import dagger.assisted.AssistedInject
 import timber.log.Timber
-import javax.inject.Inject
 
-class ProfileStatementWorker(
-    context: Context,
-    params: WorkerParameters
+@HiltWorker
+class ProfileStatementWorker @AssistedInject constructor(
+    @Assisted context: Context,
+    @Assisted params: WorkerParameters,
+    private val repository: ProfileRepository
 ) : Worker(context, params) {
-    @Inject
-    lateinit var repository: ProfileRepository
-
     override fun doWork(): Result {
-        (applicationContext as UApplication).component.inject(this)
         val statementId = inputData.getLong(STATEMENT, 0)
         return try {
             when (inputData.getInt(OPERATION, 0)) {

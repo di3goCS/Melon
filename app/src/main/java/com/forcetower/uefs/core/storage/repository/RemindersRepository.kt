@@ -2,7 +2,7 @@
  * This file is part of the UNES Open Source Project.
  * UNES is licensed under the GNU GPLv3.
  *
- * Copyright (c) 2019.  João Paulo Sena <joaopaulo761@gmail.com>
+ * Copyright (c) 2020. João Paulo Sena <joaopaulo761@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -84,14 +84,17 @@ class RemindersRepository @Inject constructor(
             val data = mapOf("completed" to next)
             profileReference.document(user.uid).collection(Reminder.COLLECTION).document(reminder.id)
                 .set(data, SetOptions.merge())
-                .addOnCompleteListener(executors.networkIO(), OnCompleteListener { task ->
-                    if (task.isSuccessful) {
-                        Timber.d("Updated reminder")
-                    } else {
-                        Timber.d("Reminder was not updated")
-                        Timber.d("Exception message: ${task.exception?.message}")
+                .addOnCompleteListener(
+                    executors.networkIO(),
+                    OnCompleteListener { task ->
+                        if (task.isSuccessful) {
+                            Timber.d("Updated reminder")
+                        } else {
+                            Timber.d("Reminder was not updated")
+                            Timber.d("Exception message: ${task.exception?.message}")
+                        }
                     }
-                })
+                )
         } else {
             Timber.d("Not connected")
         }

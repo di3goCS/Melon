@@ -2,7 +2,7 @@
  * This file is part of the UNES Open Source Project.
  * UNES is licensed under the GNU GPLv3.
  *
- * Copyright (c) 2019.  João Paulo Sena <joaopaulo761@gmail.com>
+ * Copyright (c) 2020. João Paulo Sena <joaopaulo761@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -26,10 +26,12 @@ import androidx.room.Insert
 import androidx.room.OnConflictStrategy.IGNORE
 import androidx.room.Query
 import androidx.room.Transaction
+import androidx.room.Update
 import com.forcetower.sagres.database.model.SagresDisciplineMissedClass
 import com.forcetower.uefs.core.model.unes.Class
 import com.forcetower.uefs.core.model.unes.ClassAbsence
 import com.forcetower.uefs.core.model.unes.Profile
+import com.forcetower.uefs.core.storage.database.aggregation.ClassAbsenceWithClass
 import timber.log.Timber
 
 @Dao
@@ -37,13 +39,19 @@ abstract class ClassAbsenceDao {
     @Insert(onConflict = IGNORE)
     abstract fun insert(absence: ClassAbsence)
 
+    @Insert(onConflict = IGNORE)
+    abstract suspend fun insert(absence: List<ClassAbsence>)
+
+    @Update(onConflict = IGNORE)
+    abstract suspend fun update(absence: ClassAbsence)
+
     @Query("UPDATE ClassAbsence SET notified = 1")
-    abstract fun markAllNotified()
+    abstract suspend fun markAllNotified()
 
     @Query("SELECT * FROM ClassAbsence WHERE notified = 0")
-    abstract fun getUnnotifiedDirect(): List<ClassAbsence>
+    abstract suspend fun getUnnotifiedDirect(): List<ClassAbsence>
 
-    @Query("SELECT ca.* FROM ClassAbsence ca WHERE ca.class_id = :classId")
+    @Query("SELECT ca.* FROM ClassAbsence ca WHERE ca.class_id = :classId ORDER BY ca.sequence")
     abstract fun getMyAbsenceFromClass(classId: Long): LiveData<List<ClassAbsence>>
 
     @Query("SELECT COUNT(uid) FROM ClassAbsence WHERE class_id = :classId")
@@ -57,17 +65,31 @@ abstract class ClassAbsenceDao {
         val profile = getMeProfile()
 
         classes.mapNotNull { getClass(it.disciplineCode, it.semester) }
-                .distinctBy { it.uid }
-                .forEach { resetClassAbsences(it.uid) }
+            .distinctBy { it.uid }
+            .forEach { resetClassAbsences(it.uid) }
 
         classes.forEach {
-            val sequence = it.description.split("-")[0].trim().split(" ")[1].trim().toIntOrNull() ?: 0
-            val clazz = getClass(it.disciplineCode, it.semester)
+            try {
+                val sequence = it.description.split("-")[0].trim().split(" ")[1].trim().toIntOrNull() ?: 0
+                val clazz = getClass(it.disciplineCode, it.semester)
 
-            if (clazz != null) {
-                insert(ClassAbsence(classId = clazz.uid, profileId = profile.uid, date = it.date, description = it.description, sequence = sequence, notified = false))
-            } else {
-                Timber.e("<abs_no_class> :: Class not found for ${it.disciplineCode}_${it.semester}")
+                if (clazz != null) {
+                    insert(
+                        ClassAbsence(
+                            classId = clazz.uid,
+                            profileId = profile.uid,
+                            date = it.date,
+                            description = it.description,
+                            sequence = sequence,
+                            notified = false,
+                            grouping = it.group
+                        )
+                    )
+                } else {
+                    Timber.e("<abs_no_class> :: Class not found for ${it.disciplineCode}_${it.semester}")
+                }
+            } catch (exception: Throwable) {
+                Timber.e(exception, "Something went wrong at sequence extraction")
             }
         }
     }
@@ -78,6 +100,10 @@ abstract class ClassAbsenceDao {
     @Query("SELECT * FROM Profile WHERE me = 1")
     protected abstract fun getMeProfile(): Profile
 
-    @Query("DELETE FROM ClassAbsence WHERE class_id = :uid")
-    protected abstract fun resetClassAbsences(uid: Long)
+    @Query("DELETE FROM ClassAbsence WHERE class_id = :classId")
+    abstract fun resetClassAbsences(classId: Long)
+
+    @Transaction
+    @Query("SELECT * FROM ClassAbsence WHERE class_id = :classId")
+    abstract fun getDirectWithDetails(classId: Long): List<ClassAbsenceWithClass>
 }

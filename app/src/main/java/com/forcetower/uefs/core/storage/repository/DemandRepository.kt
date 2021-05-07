@@ -2,7 +2,7 @@
  * This file is part of the UNES Open Source Project.
  * UNES is licensed under the GNU GPLv3.
  *
- * Copyright (c) 2019.  João Paulo Sena <joaopaulo761@gmail.com>
+ * Copyright (c) 2020. João Paulo Sena <joaopaulo761@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -26,7 +26,6 @@ import androidx.core.os.bundleOf
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.LiveDataReactiveStreams
 import androidx.lifecycle.MediatorLiveData
-import com.crashlytics.android.Crashlytics
 import com.forcetower.sagres.SagresNavigator
 import com.forcetower.sagres.database.model.SagresDemandOffer
 import com.forcetower.sagres.operation.Status
@@ -123,18 +122,24 @@ class DemandRepository @Inject constructor(
             if (callback.status == Status.SUCCESS) {
                 analytics.logEvent("demand_user_completed_last_flow", null)
             } else {
-                analytics.logEvent("demand_user_failed_last_flow", bundleOf(
-                    "status" to callback.status.name
-                ))
+                analytics.logEvent(
+                    "demand_user_failed_last_flow",
+                    bundleOf(
+                        "status" to callback.status.name
+                    )
+                )
             }
 
             NotificationCreator.showSimpleNotification(context, title, content)
         } catch (t: Throwable) {
             NotificationCreator.showSimpleNotification(context, context.getString(R.string.demand_notification_title), "Uma exceção muito louca ocorreu: ${t.message}")
-            analytics.logEvent("demand_user_exception_at_worker", bundleOf(
-                "message" to t.message
-            ))
-            Crashlytics.logException(t)
+            analytics.logEvent(
+                "demand_user_exception_at_worker",
+                bundleOf(
+                    "message" to t.message
+                )
+            )
+            Timber.e(t)
         }
     }
 }

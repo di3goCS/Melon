@@ -2,7 +2,7 @@
  * This file is part of the UNES Open Source Project.
  * UNES is licensed under the GNU GPLv3.
  *
- * Copyright (c) 2019.  João Paulo Sena <joaopaulo761@gmail.com>
+ * Copyright (c) 2020. João Paulo Sena <joaopaulo761@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,6 +21,7 @@
 package com.forcetower.uefs.feature.messages
 
 import android.text.SpannableString
+import android.text.method.LinkMovementMethod
 import android.text.util.Linkify
 import android.view.View.GONE
 import android.view.View.VISIBLE
@@ -43,6 +44,8 @@ fun messageContent(tv: TextView, cont: String?) {
     val spannable = SpannableString(content)
     Linkify.addLinks(spannable, Linkify.WEB_URLS)
     tv.text = spannable
+    tv.movementMethod = LinkMovementMethod.getInstance()
+    tv.autoLinkMask = tv.autoLinkMask or Linkify.WEB_URLS
 }
 
 @BindingAdapter("disciplineText")
@@ -61,7 +64,8 @@ fun disciplineText(tv: TextView, message: Message?) {
 }
 
 @BindingAdapter(value = ["messageTimestamp"])
-fun getTimeStampedDate(view: TextView, message: Message) {
+fun getTimeStampedDate(view: TextView, message: Message?) {
+    message ?: return
     if (!message.html) {
         val time = message.timestamp
         val context = view.context
@@ -107,7 +111,7 @@ fun senderText(tv: TextView, message: Message?) {
         tv.visibility = VISIBLE
         val text = message.senderName
         val title = WordUtils.toTitleCase(text)
-        tv.text = title ?: "::prov_renatinha::"
+        tv.text = title ?: "?????"
     }
 }
 

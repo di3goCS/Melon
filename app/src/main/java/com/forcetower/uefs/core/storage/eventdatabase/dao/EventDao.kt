@@ -2,7 +2,7 @@
  * This file is part of the UNES Open Source Project.
  * UNES is licensed under the GNU GPLv3.
  *
- * Copyright (c) 2019.  João Paulo Sena <joaopaulo761@gmail.com>
+ * Copyright (c) 2020. João Paulo Sena <joaopaulo761@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -58,6 +58,14 @@ abstract class EventDao {
         deleteTags()
         deleteSpeakers()
 
+        val serverUUIDMap = value.map { it.uuid }
+        val currentSessions = getAllSessionsDirect()
+        val deletedSessions = currentSessions.filter { !serverUUIDMap.contains(it.uuid) }
+
+        deletedSessions.forEach {
+            deleteIfPresent(it.uuid)
+        }
+
         value.forEach {
             insertTags(it.tags)
             insertSpeakers(it.speakers)
@@ -108,6 +116,9 @@ abstract class EventDao {
     @Transaction
     @Query("SELECT * FROM Session")
     abstract fun getAllSessions(): LiveData<List<SessionWithData>>
+
+    @Query("SELECT * FROM Session")
+    protected abstract fun getAllSessionsDirect(): List<Session>
 
     @Query("SELECT * FROM Speaker WHERE uid = :speakerId")
     abstract fun getSpeakerWithId(speakerId: Long): LiveData<Speaker>

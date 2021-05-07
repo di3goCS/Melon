@@ -2,7 +2,7 @@
  * This file is part of the UNES Open Source Project.
  * UNES is licensed under the GNU GPLv3.
  *
- * Copyright (c) 2019.  João Paulo Sena <joaopaulo761@gmail.com>
+ * Copyright (c) 2020. João Paulo Sena <joaopaulo761@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,20 +22,23 @@ package com.forcetower.uefs.feature.siecomp
 
 import android.content.Intent
 import android.os.Bundle
+import androidx.preference.PreferenceManager
+import com.forcetower.uefs.core.util.siecomp.TimeUtils
 import com.forcetower.uefs.feature.shared.UActivity
 import com.forcetower.uefs.feature.siecomp.onboarding.OnboardingActivity
+import com.forcetower.uefs.feature.siecomp.schedule.EventScheduleActivity
 
 class SIECOMPActivity : UActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
         if (savedInstanceState == null) {
-//            val preferences = PreferenceManager.getDefaultSharedPreferences(this)
-//            if (preferences.getBoolean("siecomp_event_xxii_onboarding_completed", false)) {
-//                startActivity(Intent(this, EventScheduleActivity::class.java))
-//            } else {
+            val preferences = PreferenceManager.getDefaultSharedPreferences(this)
+            if (TimeUtils.eventHasStarted() && preferences.getBoolean("siecomp_xxii_onboarding_completed_2", false)) {
+                startActivity(Intent(this, EventScheduleActivity::class.java))
+            } else {
                 startActivity(Intent(this, OnboardingActivity::class.java))
-//            }
+            }
         }
         finish()
     }

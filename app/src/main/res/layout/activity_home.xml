@@ -3,7 +3,7 @@
   ~ This file is part of the UNES Open Source Project.
   ~ UNES is licensed under the GNU GPLv3.
   ~
-  ~ Copyright (c) 2019.  João Paulo Sena <joaopaulo761@gmail.com>
+  ~ Copyright (c) 2020. João Paulo Sena <joaopaulo761@gmail.com>
   ~
   ~ This program is free software: you can redistribute it and/or modify
   ~ it under the terms of the GNU General Public License as published by
@@ -30,9 +30,9 @@
             android:layout_height="match_parent"
             android:layout_marginBottom="56dp">
 
-            <fragment
+            <androidx.fragment.app.FragmentContainerView
                 android:id="@+id/home_nav_host"
-                android:name="androidx.navigation.fragment.NavHostFragment"
+                android:name="androidx.navigation.dynamicfeatures.fragment.DynamicNavHostFragment"
                 android:layout_width="0dp"
                 android:layout_height="0dp"
                 app:defaultNavHost="true"
@@ -54,12 +54,5 @@
             app:menu="@menu/home_bottom_navigation"
             app:itemIconTint="@color/navigation_bottom_color"
             app:itemTextColor="@color/navigation_bottom_color"/>
-
-        <androidx.coordinatorlayout.widget.CoordinatorLayout
-            android:id="@+id/snack"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_gravity="bottom"
-            android:layout_marginBottom="68dp"/>
     </androidx.coordinatorlayout.widget.CoordinatorLayout>
 </layout>

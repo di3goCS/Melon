@@ -2,7 +2,7 @@
  * This file is part of the UNES Open Source Project.
  * UNES is licensed under the GNU GPLv3.
  *
- * Copyright (c) 2019.  João Paulo Sena <joaopaulo761@gmail.com>
+ * Copyright (c) 2020. João Paulo Sena <joaopaulo761@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -35,7 +35,7 @@ import com.forcetower.uefs.core.model.unes.ClassGroup
 import com.forcetower.uefs.core.model.unes.ClassItem
 import com.forcetower.uefs.core.model.unes.ClassMaterial
 import com.forcetower.uefs.core.model.unes.Discipline
-import com.forcetower.uefs.core.storage.database.accessors.GroupWithClass
+import com.forcetower.uefs.core.storage.database.aggregation.ClassGroupWithData
 import timber.log.Timber
 
 @Dao
@@ -109,21 +109,61 @@ abstract class ClassGroupDao {
         return group
     }
 
+    open suspend fun insertNewWay(group: ClassGroup): Long {
+        val groups = selectGroupsFromClassDirect(group.classId)
+        when {
+            // just insert, you are brand new
+            groups.isEmpty() -> {
+                return insert(group)
+            }
+            groups.size == 1 -> {
+                val current = groups.first()
+                // are we merging?
+                return if (current.group.equals("unique", ignoreCase = true) || current.group.equals(group.group, ignoreCase = true)) {
+                    // yes, we are
+                    update(group.copy(uid = current.uid, ignored = current.ignored))
+                    current.uid
+                } else {
+                    // no, we are not, you new
+                    insert(group)
+                }
+            }
+            // there are plenty of groups here... find the one that fits
+            else -> {
+                val current = groups.firstOrNull { it.group == "unique" || it.group.equals(group.group, ignoreCase = true) }
+                return if (current != null) {
+                    // merge the fitter
+                    update(group.copy(uid = current.uid, ignored = current.ignored))
+                    current.uid
+                } else {
+                    // no one fits
+                    insert(group)
+                }
+            }
+        }
+    }
+
+    @Query("SELECT * FROM ClassGroup WHERE class_id = :classId")
+    abstract suspend fun selectGroupsFromClassDirect(classId: Long): List<ClassGroup>
+
     @Update
     abstract fun update(group: ClassGroup)
 
     @Transaction
     @Query("SELECT * FROM ClassGroup WHERE uid = :classGroupId")
-    abstract fun getWithRelations(classGroupId: Long): LiveData<GroupWithClass?>
+    abstract fun getWithRelations(classGroupId: Long): LiveData<ClassGroupWithData?>
 
     @Transaction
     @Query("SELECT * FROM ClassGroup WHERE uid = :classGroupId")
-    abstract fun getWithRelationsDirect(classGroupId: Long): GroupWithClass?
+    abstract fun getWithRelationsDirect(classGroupId: Long): ClassGroupWithData?
 
-    @Query("SELECT c.uid as identifier, gd.date as eval_date, gd.grade as eval_grade, gd.name as eval_name, d.code as code, d.credits as credits, s.sagres_id as semester, s.codename as semester_name, cg.teacher as teacher, cg.`group` as `group`, c.final_score as grade, c.partial_score as partialScore, d.name as discipline FROM ClassGroup cg, Class c, Discipline d, Semester s, Grade gd WHERE c.uid = gd.class_id AND cg.class_id = c.uid AND c.discipline_id = d.uid AND c.semester_id = s.uid AND cg.teacher IS NOT NULL AND cg.`group` IS NOT NULL")
+    @Query("SELECT * FROM ClassGroup WHERE uid = :classGroupId")
+    abstract suspend fun getGroupDirect(classGroupId: Long): ClassGroup?
+
+    @Query("SELECT c.uid as identifier, gd.date as eval_date, gd.grade as eval_grade, gd.name as eval_name, d.code as code, d.credits as credits, s.sagres_id as semester, s.codename as semester_name, cg.teacher as teacher, cg.teacherEmail as teacherEmail, cg.`group` as `group`, c.final_score as grade, c.partial_score as partialScore, d.name as discipline FROM ClassGroup cg, Class c, Discipline d, Semester s LEFT JOIN Grade gd ON c.uid = gd.class_id WHERE cg.class_id = c.uid AND c.discipline_id = d.uid AND c.semester_id = s.uid AND cg.teacher IS NOT NULL AND cg.`group` IS NOT NULL AND cg.`group` IS NOT 'unique'")
     abstract fun getClassStatsWithAllDirect(): List<ClassStatsData>
 
-    @Query("SELECT c.uid as identifier, gd.date as eval_date, gd.grade as eval_grade, gd.name as eval_name, d.code as code, d.credits as credits, s.sagres_id as semester, s.codename as semester_name, cg.teacher as teacher, cg.`group` as `group`, c.final_score as grade, c.partial_score as partialScore, d.name as discipline FROM ClassGroup cg, Class c, Discipline d, Semester s, Grade gd WHERE c.uid = gd.class_id AND cg.class_id = c.uid AND c.discipline_id = d.uid AND c.semester_id = s.uid AND s.sagres_id = :semesterId AND cg.teacher IS NOT NULL AND cg.`group` IS NOT NULL")
+    @Query("SELECT c.uid as identifier, gd.date as eval_date, gd.grade as eval_grade, gd.name as eval_name, d.code as code, d.credits as credits, s.sagres_id as semester, s.codename as semester_name, cg.teacher as teacher, cg.teacherEmail as teacherEmail, cg.`group` as `group`, c.final_score as grade, c.partial_score as partialScore, d.name as discipline FROM ClassGroup cg, Class c, Discipline d, Semester s LEFT JOIN Grade gd ON c.uid = gd.class_id WHERE cg.class_id = c.uid AND c.discipline_id = d.uid AND c.semester_id = s.uid AND s.sagres_id = :semesterId AND cg.teacher IS NOT NULL AND cg.`group` IS NOT NULL AND cg.`group` IS NOT 'unique'")
     abstract fun getClassStatsWithAllDirect(semesterId: Long): List<ClassStatsData>
 
     @Insert(onConflict = IGNORE)
@@ -141,11 +181,13 @@ abstract class ClassGroupDao {
     @Query("SELECT g.* FROM ClassGroup g, Class c, Semester s, Discipline d WHERE g.class_id = c.uid AND c.discipline_id = d.uid AND c.semester_id = s.uid AND s.codename = :semester AND LOWER(d.code) = LOWER(:code) AND g.`group` = :group")
     abstract fun selectGroup(semester: String, code: String, group: String): LiveData<ClassGroup?>
 
-    @Query("SELECT c.* FROM Class c, Semester s, Discipline d WHERE " +
+    @Query(
+        "SELECT c.* FROM Class c, Semester s, Discipline d WHERE " +
             "c.discipline_id = d.uid AND " +
             "c.semester_id = s.uid AND " +
             "s.codename = :semester AND " +
-            "LOWER(d.code) = LOWER(:code)")
+            "LOWER(d.code) = LOWER(:code)"
+    )
     protected abstract fun selectClassDirect(semester: String, code: String): Class?
 
     @Query("SELECT * FROM Discipline WHERE LOWER(code) = LOWER(:code)")
@@ -157,4 +199,7 @@ abstract class ClassGroupDao {
     @WorkerThread
     @Query("SELECT * FROM ClassGroup WHERE class_id = :classId")
     abstract fun getGroupsFromClassDirect(classId: Long): List<ClassGroup>
+
+    @Query("SELECT * FROM ClassGroup WHERE sagresId = :id")
+    abstract suspend fun getByElementalIdDirect(id: Long): ClassGroup?
 }

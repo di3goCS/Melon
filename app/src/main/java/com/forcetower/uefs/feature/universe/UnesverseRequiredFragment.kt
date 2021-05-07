@@ -2,7 +2,7 @@
  * This file is part of the UNES Open Source Project.
  * UNES is licensed under the GNU GPLv3.
  *
- * Copyright (c) 2019.  João Paulo Sena <joaopaulo761@gmail.com>
+ * Copyright (c) 2020. João Paulo Sena <joaopaulo761@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -24,27 +24,23 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import androidx.fragment.app.viewModels
 import androidx.lifecycle.Observer
 import androidx.navigation.fragment.findNavController
+import com.forcetower.core.lifecycle.EventObserver
 import com.forcetower.uefs.R
-import com.forcetower.uefs.core.injection.Injectable
-import com.forcetower.uefs.core.vm.EventObserver
-import com.forcetower.uefs.core.vm.UViewModelFactory
 import com.forcetower.uefs.core.vm.UnesverseViewModel
 import com.forcetower.uefs.databinding.FragmentUniverseRequiredBinding
 import com.forcetower.uefs.feature.information.InformationDialog
 import com.forcetower.uefs.feature.shared.UFragment
-import com.forcetower.uefs.feature.shared.extensions.provideViewModel
-import javax.inject.Inject
+import dagger.hilt.android.AndroidEntryPoint
 
-class UnesverseRequiredFragment : UFragment(), Injectable {
-    @Inject
-    lateinit var factory: UViewModelFactory
+@AndroidEntryPoint
+class UnesverseRequiredFragment : UFragment() {
     private lateinit var binding: FragmentUniverseRequiredBinding
-    private lateinit var viewModel: UnesverseViewModel
+    private val viewModel: UnesverseViewModel by viewModels()
 
-    override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View? {
-        viewModel = provideViewModel(factory)
+    override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         return FragmentUniverseRequiredBinding.inflate(inflater, container, false).also {
             binding = it
         }.apply {
@@ -60,20 +56,26 @@ class UnesverseRequiredFragment : UFragment(), Injectable {
         dialog.show(childFragmentManager, "what_is_unesverse")
     }
 
-    override fun onActivityCreated(savedInstanceState: Bundle?) {
-        super.onActivityCreated(savedInstanceState)
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
         binding.connecting = viewModel.isLoggingIn
         binding.lifecycleOwner = this
-        viewModel.loggingIn.observe(this, Observer { Unit })
-        viewModel.loginMessenger.observe(this, EventObserver {
-            val message = getString(it)
-            showSnack(message)
-        })
-        viewModel.access.observe(this, Observer {
-            if (it != null) {
-                findNavController().navigate(R.id.action_unesverse_required_to_presentation)
+        viewModel.loggingIn.observe(viewLifecycleOwner, Observer { Unit })
+        viewModel.loginMessenger.observe(
+            viewLifecycleOwner,
+            EventObserver {
+                val message = getString(it)
+                showSnack(message)
             }
-        })
+        )
+        viewModel.access.observe(
+            viewLifecycleOwner,
+            {
+                if (it != null) {
+                    findNavController().navigate(R.id.action_unesverse_required_to_presentation)
+                }
+            }
+        )
     }
 
     private fun connect() {

@@ -2,7 +2,7 @@
  * This file is part of the UNES Open Source Project.
  * UNES is licensed under the GNU GPLv3.
  *
- * Copyright (c) 2019.  João Paulo Sena <joaopaulo761@gmail.com>
+ * Copyright (c) 2020. João Paulo Sena <joaopaulo761@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -24,6 +24,7 @@ import android.util.TypedValue
 import android.widget.TextView
 import androidx.core.content.ContextCompat
 import androidx.databinding.BindingAdapter
+import com.forcetower.core.utils.ViewUtils
 import com.forcetower.uefs.R
 import com.forcetower.uefs.core.model.unes.EvaluationEntity
 import com.forcetower.uefs.feature.evaluation.discipline.SemesterMean
@@ -59,7 +60,7 @@ fun formatSemesterGradeChart(chart: LineChart, list: List<SemesterMean>?) {
     set.setDrawFilled(true)
     set.fillDrawable = ContextCompat.getDrawable(context, R.drawable.gradient_chart_evaluation)
     set.mode = LineDataSet.Mode.CUBIC_BEZIER
-    set.color = ContextCompat.getColor(context, R.color.colorAccent)
+    set.color = ViewUtils.attributeColorUtils(context, R.attr.colorAccent)
     set.setDrawCircles(false)
     set.setDrawValues(false)
 

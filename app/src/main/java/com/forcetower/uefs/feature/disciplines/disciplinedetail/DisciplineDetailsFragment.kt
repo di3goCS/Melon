@@ -2,7 +2,7 @@
  * This file is part of the UNES Open Source Project.
  * UNES is licensed under the GNU GPLv3.
  *
- * Copyright (c) 2019.  João Paulo Sena <joaopaulo761@gmail.com>
+ * Copyright (c) 2020. João Paulo Sena <joaopaulo761@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -24,18 +24,18 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import androidx.core.content.ContextCompat
 import androidx.core.os.bundleOf
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.FragmentManager
 import androidx.fragment.app.FragmentPagerAdapter
+import androidx.fragment.app.activityViewModels
 import androidx.recyclerview.widget.DividerItemDecoration
 import androidx.recyclerview.widget.RecyclerView
 import androidx.viewpager.widget.ViewPager
+import com.forcetower.core.lifecycle.EventObserver
 import com.forcetower.uefs.R
-import com.forcetower.uefs.core.injection.Injectable
 import com.forcetower.uefs.core.model.unes.Discipline
-import com.forcetower.uefs.core.vm.EventObserver
-import com.forcetower.uefs.core.vm.UViewModelFactory
 import com.forcetower.uefs.databinding.ExtItemDisciplineHoursBinding
 import com.forcetower.uefs.databinding.ExtItemMissedClassesBinding
 import com.forcetower.uefs.databinding.FragmentDisciplineDetailsBinding
@@ -48,28 +48,23 @@ import com.forcetower.uefs.feature.evaluation.EvaluationActivity
 import com.forcetower.uefs.feature.shared.UFragment
 import com.forcetower.uefs.feature.shared.extensions.openURL
 import com.forcetower.uefs.feature.shared.inflate
-import com.forcetower.uefs.feature.shared.extensions.provideActivityViewModel
 import com.forcetower.uefs.widget.DividerItemDecorator
 import com.google.android.material.tabs.TabLayout
 import com.google.firebase.firestore.CollectionReference
 import javax.inject.Inject
 import javax.inject.Named
 
-class DisciplineDetailsFragment : UFragment(), Injectable {
-    @Inject
-    lateinit var factory: UViewModelFactory
-    @Inject
-    @field:Named(Discipline.COLLECTION)
+class DisciplineDetailsFragment : UFragment() {
+    @Inject @Named(Discipline.COLLECTION)
     lateinit var firestore: CollectionReference
 
-    private lateinit var viewModel: DisciplineViewModel
+    private val viewModel: DisciplineViewModel by activityViewModels()
     private lateinit var binding: FragmentDisciplineDetailsBinding
     private lateinit var tabs: TabLayout
     private lateinit var viewPager: ViewPager
     private lateinit var adapter: DetailsAdapter
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View? {
-        viewModel = provideActivityViewModel(factory)
         binding = FragmentDisciplineDetailsBinding.inflate(inflater, container, false).also {
             viewPager = it.viewPager
             tabs = it.tabs
@@ -87,23 +82,23 @@ class DisciplineDetailsFragment : UFragment(), Injectable {
         val menuAdapter = ItemsDisciplineAdapter()
         binding.recyclerDisciplineItems.apply {
             adapter = menuAdapter
-            addItemDecoration(DividerItemDecorator(context.getDrawable(R.drawable.divider)!!, DividerItemDecoration.HORIZONTAL))
+            addItemDecoration(DividerItemDecorator(ContextCompat.getDrawable(context, R.drawable.divider)!!, DividerItemDecoration.HORIZONTAL))
         }
 
         binding.up.setOnClickListener {
             activity?.finishAfterTransition()
         }
 
-        viewModel.materialClick.observe(this, EventObserver { requireContext().openURL(it.link) })
-    }
+        viewModel.materialClick.observe(viewLifecycleOwner, EventObserver { requireContext().openURL(it.link) })
 
-    override fun onActivityCreated(savedInstanceState: Bundle?) {
-        super.onActivityCreated(savedInstanceState)
         viewModel.setClassId(requireNotNull(arguments).getLong(DisciplineDetailsActivity.CLASS_ID))
         viewModel.setClassGroupId(requireNotNull(arguments).getLong(DisciplineDetailsActivity.CLASS_GROUP_ID))
-        viewModel.navigateToTeacherAction.observe(this, EventObserver {
-            startActivity(EvaluationActivity.startIntentForTeacher(requireContext(), it))
-        })
+        viewModel.navigateToTeacherAction.observe(
+            viewLifecycleOwner,
+            EventObserver {
+                startActivity(EvaluationActivity.startIntentForTeacher(requireContext(), it))
+            }
+        )
         binding.apply {
             viewModel = this@DisciplineDetailsFragment.viewModel
             lifecycleOwner = this@DisciplineDetailsFragment
@@ -120,7 +115,7 @@ class DisciplineDetailsFragment : UFragment(), Injectable {
         adapter.submitList(list)
     }
 
-    private inner class DetailsAdapter(fm: FragmentManager) : FragmentPagerAdapter(fm, BEHAVIOR_RESUME_ONLY_CURRENT_FRAGMENT) {
+    private class DetailsAdapter(fm: FragmentManager) : FragmentPagerAdapter(fm, BEHAVIOR_RESUME_ONLY_CURRENT_FRAGMENT) {
         private val tabs = mutableListOf<Pair<String, Fragment>>()
         override fun getItem(position: Int) = tabs[position].second
         override fun getCount() = tabs.size
@@ -153,18 +148,16 @@ class DisciplineDetailsFragment : UFragment(), Injectable {
         }
 
         override fun onBindViewHolder(holder: ItemHolder, position: Int) {
-            if (::viewModel.isInitialized) {
-                when (holder) {
-                    is ItemHolder.HoursHolder -> holder.binding.apply {
-                        viewModel = this@DisciplineDetailsFragment.viewModel
-                        lifecycleOwner = this@DisciplineDetailsFragment
-                        executePendingBindings()
-                    }
-                    is ItemHolder.MissedHolder -> holder.binding.apply {
-                        viewModel = this@DisciplineDetailsFragment.viewModel
-                        lifecycleOwner = this@DisciplineDetailsFragment
-                        executePendingBindings()
-                    }
+            when (holder) {
+                is ItemHolder.HoursHolder -> holder.binding.apply {
+                    viewModel = this@DisciplineDetailsFragment.viewModel
+                    lifecycleOwner = this@DisciplineDetailsFragment
+                    executePendingBindings()
+                }
+                is ItemHolder.MissedHolder -> holder.binding.apply {
+                    viewModel = this@DisciplineDetailsFragment.viewModel
+                    lifecycleOwner = this@DisciplineDetailsFragment
+                    executePendingBindings()
                 }
             }
         }

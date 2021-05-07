@@ -2,7 +2,7 @@
  * This file is part of the UNES Open Source Project.
  * UNES is licensed under the GNU GPLv3.
  *
- * Copyright (c) 2019.  João Paulo Sena <joaopaulo761@gmail.com>
+ * Copyright (c) 2020. João Paulo Sena <joaopaulo761@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -25,7 +25,6 @@ import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
 import androidx.lifecycle.LifecycleService
-import androidx.lifecycle.Observer
 import com.forcetower.sagres.operation.Status
 import com.forcetower.sagres.operation.disciplinedetails.DisciplineDetailsCallback.Companion.DOWNLOADING
 import com.forcetower.sagres.operation.disciplinedetails.DisciplineDetailsCallback.Companion.GRADES
@@ -38,12 +37,12 @@ import com.forcetower.uefs.R
 import com.forcetower.uefs.core.storage.repository.DisciplineDetailsRepository
 import com.forcetower.uefs.core.util.isConnectedToInternet
 import com.forcetower.uefs.service.NotificationCreator
-import dagger.android.AndroidInjection
+import dagger.hilt.android.AndroidEntryPoint
 import timber.log.Timber
 import javax.inject.Inject
 
+@AndroidEntryPoint
 class DisciplineDetailsLoaderService : LifecycleService() {
-
     companion object {
         private const val NOTIFICATION_DISCIPLINE_DETAILS_LOADER = 20546
         const val EXTRA_SHOW_CONTRIBUTING_NOTIFICATION = "show_contributing_notification"
@@ -65,15 +64,10 @@ class DisciplineDetailsLoaderService : LifecycleService() {
     private var running = false
     private var contributing = false
 
-    override fun onCreate() {
-        super.onCreate()
-        AndroidInjection.inject(this)
-    }
-
-    override fun onStartCommand(intent: Intent, flags: Int, startId: Int): Int {
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         super.onStartCommand(intent, flags, startId)
 
-        val value = intent.getBooleanExtra(EXTRA_SHOW_CONTRIBUTING_NOTIFICATION, false)
+        val value = intent?.getBooleanExtra(EXTRA_SHOW_CONTRIBUTING_NOTIFICATION, false) ?: false
         contributing = value || contributing
 
         startComponent()
@@ -84,7 +78,7 @@ class DisciplineDetailsLoaderService : LifecycleService() {
         if (!running) {
             running = true
             Timber.d("Started Discipline Load")
-            repository.loadDisciplineDetails(partialLoad = contributing, discover = false).observe(this, Observer { onDataUpdate(it) })
+            repository.loadDisciplineDetails(partialLoad = contributing, discover = false).observe(this, { onDataUpdate(it) })
         }
     }
 

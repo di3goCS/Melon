@@ -2,7 +2,7 @@
  * This file is part of the UNES Open Source Project.
  * UNES is licensed under the GNU GPLv3.
  *
- * Copyright (c) 2019.  João Paulo Sena <joaopaulo761@gmail.com>
+ * Copyright (c) 2020. João Paulo Sena <joaopaulo761@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,31 +20,26 @@
 
 package com.forcetower.uefs.feature.mechcalculator
 
-import android.media.MediaPlayer
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.View.GONE
 import android.view.View.VISIBLE
 import android.view.ViewGroup
+import androidx.fragment.app.activityViewModels
 import androidx.lifecycle.Observer
 import com.forcetower.uefs.R
-import com.forcetower.uefs.core.injection.Injectable
-import com.forcetower.uefs.core.vm.UViewModelFactory
 import com.forcetower.uefs.databinding.FragmentMechCalculatorBinding
 import com.forcetower.uefs.feature.shared.UFragment
 import com.forcetower.uefs.feature.shared.UGameActivity
-import com.forcetower.uefs.feature.shared.extensions.provideActivityViewModel
-import javax.inject.Inject
+import dagger.hilt.android.AndroidEntryPoint
 
-class MechanicalFragment : UFragment(), Injectable {
-    @Inject
-    lateinit var factory: UViewModelFactory
-    lateinit var binding: FragmentMechCalculatorBinding
-    lateinit var viewModel: MechanicalViewModel
+@AndroidEntryPoint
+class MechanicalFragment : UFragment() {
+    private val viewModel: MechanicalViewModel by activityViewModels()
+    private lateinit var binding: FragmentMechCalculatorBinding
 
-    override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View? {
-        viewModel = provideActivityViewModel(factory)
+    override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         return FragmentMechCalculatorBinding.inflate(inflater, container, false).also {
             binding = it
         }.root
@@ -69,32 +64,28 @@ class MechanicalFragment : UFragment(), Injectable {
             executePendingBindings()
         }
 
-        viewModel.mechanics.observe(this, Observer {
-            if (it.isEmpty()) {
-                binding.textNoData.visibility = VISIBLE
-                binding.recyclerMech.visibility = GONE
-            } else {
-                binding.textNoData.visibility = GONE
-                binding.recyclerMech.visibility = VISIBLE
+        viewModel.mechanics.observe(
+            viewLifecycleOwner,
+            Observer {
+                if (it.isEmpty()) {
+                    binding.textNoData.visibility = VISIBLE
+                    binding.recyclerMech.visibility = GONE
+                } else {
+                    binding.textNoData.visibility = GONE
+                    binding.recyclerMech.visibility = VISIBLE
+                }
+                mechAdapter.submitList(it)
             }
-            mechAdapter.submitList(it)
-        })
+        )
 
-        viewModel.result.observe(this, Observer {
-            it ?: return@Observer
-            if (it.mean == Double.NaN) {
-                (activity as? UGameActivity)?.unlockAchievement(R.string.achievement_claramente_na_disney)
+        viewModel.result.observe(
+            viewLifecycleOwner,
+            Observer {
+                it ?: return@Observer
+                if (it.mean.isNaN()) {
+                    (activity as? UGameActivity)?.unlockAchievement(R.string.achievement_claramente_na_disney)
+                }
             }
-        })
-    }
-
-    override fun onActivityCreated(savedInstanceState: Bundle?) {
-        super.onActivityCreated(savedInstanceState)
-        if (!viewModel.playedMusic) {
-            viewModel.playedMusic = true
-            val player = MediaPlayer.create(requireContext(), R.raw.final_countdown)
-            player.setVolume(0.15f, 0.15f)
-            player.start()
-        }
+        )
     }
 }

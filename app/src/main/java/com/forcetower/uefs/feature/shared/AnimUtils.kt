@@ -2,7 +2,7 @@
  * This file is part of the UNES Open Source Project.
  * UNES is licensed under the GNU GPLv3.
  *
- * Copyright (c) 2019.  João Paulo Sena <joaopaulo761@gmail.com>
+ * Copyright (c) 2020. João Paulo Sena <joaopaulo761@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -46,15 +46,17 @@ fun View.fadeOut() {
 fun View.fadeOutGone() {
     if (visibility == GONE) return
     val fade: Animation = AnimationUtils.loadAnimation(context, android.R.anim.fade_out)
-    fade.setAnimationListener(object : Animation.AnimationListener {
-        override fun onAnimationRepeat(animation: Animation?) {}
+    fade.setAnimationListener(
+        object : Animation.AnimationListener {
+            override fun onAnimationRepeat(animation: Animation?) {}
 
-        override fun onAnimationEnd(animation: Animation?) {
-            visibility = GONE
+            override fun onAnimationEnd(animation: Animation?) {
+                visibility = GONE
+            }
+
+            override fun onAnimationStart(animation: Animation?) {}
         }
-
-        override fun onAnimationStart(animation: Animation?) {}
-    })
+    )
     visibility = INVISIBLE
     startAnimation(fade)
     requestLayout()

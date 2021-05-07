@@ -2,7 +2,7 @@
  * This file is part of the UNES Open Source Project.
  * UNES is licensed under the GNU GPLv3.
  *
- * Copyright (c) 2019.  João Paulo Sena <joaopaulo761@gmail.com>
+ * Copyright (c) 2020. João Paulo Sena <joaopaulo761@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,26 +21,26 @@
 package com.forcetower.uefs.core.work.hourglass
 
 import android.content.Context
+import androidx.hilt.work.HiltWorker
 import androidx.work.BackoffPolicy
 import androidx.work.Constraints
 import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.Worker
 import androidx.work.WorkerParameters
-import com.forcetower.uefs.UApplication
 import com.forcetower.uefs.core.storage.repository.DisciplineDetailsRepository
 import com.forcetower.uefs.core.work.enqueueUnique
+import dagger.assisted.Assisted
+import dagger.assisted.AssistedInject
 import java.util.concurrent.TimeUnit
-import javax.inject.Inject
 
-class HourglassContributeWorker(
-    context: Context,
-    params: WorkerParameters
+@HiltWorker
+class HourglassContributeWorker @AssistedInject constructor(
+    @Assisted context: Context,
+    @Assisted params: WorkerParameters,
+    private val repository: DisciplineDetailsRepository
 ) : Worker(context, params) {
-    @Inject
-    lateinit var repository: DisciplineDetailsRepository
     override fun doWork(): Result {
-        (applicationContext as UApplication).component.inject(this)
         return try {
             repository.loadDisciplineDetailsSync(partialLoad = true, notify = false)
             Result.success()
@@ -55,14 +55,14 @@ class HourglassContributeWorker(
 
         fun createWorker(context: Context) {
             val constraints = Constraints.Builder()
-                    .setRequiredNetworkType(NetworkType.CONNECTED)
-                    .build()
+                .setRequiredNetworkType(NetworkType.CONNECTED)
+                .build()
 
             val request = OneTimeWorkRequestBuilder<HourglassContributeWorker>()
-                    .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 1, TimeUnit.MINUTES)
-                    .setConstraints(constraints)
-                    .addTag(TAG)
-                    .build()
+                .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 1, TimeUnit.MINUTES)
+                .setConstraints(constraints)
+                .addTag(TAG)
+                .build()
 
             request.enqueueUnique(context, NAME, true)
         }

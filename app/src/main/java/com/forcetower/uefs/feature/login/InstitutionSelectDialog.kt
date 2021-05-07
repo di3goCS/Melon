@@ -2,7 +2,7 @@
  * This file is part of the UNES Open Source Project.
  * UNES is licensed under the GNU GPLv3.
  *
- * Copyright (c) 2019.  João Paulo Sena <joaopaulo761@gmail.com>
+ * Copyright (c) 2020. João Paulo Sena <joaopaulo761@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,10 +21,10 @@
 package com.forcetower.uefs.feature.login
 
 import android.os.Bundle
-import androidx.preference.PreferenceManager
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import androidx.preference.PreferenceManager
 import com.forcetower.sagres.SagresNavigator
 import com.forcetower.uefs.core.constants.Constants.SELECTED_INSTITUTION_KEY
 import com.forcetower.uefs.databinding.DialogInstitutionSelectorBinding
@@ -34,7 +34,7 @@ import timber.log.Timber
 class InstitutionSelectDialog : RoundedDialog() {
     private lateinit var binding: DialogInstitutionSelectorBinding
 
-    override fun onChildCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View? {
+    override fun onChildCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         return DialogInstitutionSelectorBinding.inflate(inflater, container, false).also {
             binding = it
             it.btnOk.setOnClickListener {
@@ -47,8 +47,8 @@ class InstitutionSelectDialog : RoundedDialog() {
         }.root
     }
 
-    override fun onActivityCreated(savedInstanceState: Bundle?) {
-        super.onActivityCreated(savedInstanceState)
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
         populateInstitutions()
     }
 

@@ -2,7 +2,7 @@
  * This file is part of the UNES Open Source Project.
  * UNES is licensed under the GNU GPLv3.
  *
- * Copyright (c) 2019.  João Paulo Sena <joaopaulo761@gmail.com>
+ * Copyright (c) 2020. João Paulo Sena <joaopaulo761@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -26,39 +26,37 @@ import android.content.Intent
 import android.os.Bundle
 import android.transition.TransitionInflater
 import androidx.databinding.DataBindingUtil
-import androidx.fragment.app.Fragment
 import com.forcetower.uefs.R
 import com.forcetower.uefs.databinding.ActivityAboutBinding
 import com.forcetower.uefs.feature.shared.FragmentAdapter
 import com.forcetower.uefs.feature.shared.UActivity
+import com.forcetower.uefs.feature.themeswitcher.ThemeOverlayUtils
 import com.forcetower.uefs.widget.ElasticDragDismissFrameLayout
-import dagger.android.AndroidInjector
-import dagger.android.DispatchingAndroidInjector
-import dagger.android.support.HasSupportFragmentInjector
-import javax.inject.Inject
+import dagger.hilt.android.AndroidEntryPoint
 
-class AboutActivity : UActivity(), HasSupportFragmentInjector {
-    @Inject
-    lateinit var fragmentInjector: DispatchingAndroidInjector<Fragment>
-
+@AndroidEntryPoint
+class AboutActivity : UActivity() {
     private lateinit var binding: ActivityAboutBinding
     private val adapter: FragmentAdapter by lazy { FragmentAdapter(supportFragmentManager) }
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        ThemeOverlayUtils.applyThemeOverlays(this, intArrayOf(R.id.theme_feature_background_color))
         super.onCreate(savedInstanceState)
         DataBindingUtil.setContentView<ActivityAboutBinding>(this, R.layout.activity_about).also {
             binding = it
         }
 
-        binding.draggableFrame.addListener(object : ElasticDragDismissFrameLayout.ElasticDragDismissCallback() {
-            override fun onDragDismissed() {
-                if (binding.draggableFrame.translationY > 0) {
-                    window.returnTransition = TransitionInflater.from(this@AboutActivity)
+        binding.draggableFrame.addListener(
+            object : ElasticDragDismissFrameLayout.ElasticDragDismissCallback() {
+                override fun onDragDismissed() {
+                    if (binding.draggableFrame.translationY > 0) {
+                        window.returnTransition = TransitionInflater.from(this@AboutActivity)
                             .inflateTransition(R.transition.about_return_downward)
+                    }
+                    finishAfterTransition()
                 }
-                finishAfterTransition()
             }
-        })
+        )
 
         setupPager()
     }
@@ -72,7 +70,7 @@ class AboutActivity : UActivity(), HasSupportFragmentInjector {
         binding.indicator.setViewPager(binding.viewPager)
     }
 
-    override fun supportFragmentInjector(): AndroidInjector<Fragment> = fragmentInjector
+    override fun shouldApplyThemeOverlay() = false
 
     companion object {
         fun startActivity(activity: Activity) {

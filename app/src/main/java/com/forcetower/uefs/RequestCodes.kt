@@ -2,7 +2,7 @@
  * This file is part of the UNES Open Source Project.
  * UNES is licensed under the GNU GPLv3.
  *
- * Copyright (c) 2019.  João Paulo Sena <joaopaulo761@gmail.com>
+ * Copyright (c) 2020. João Paulo Sena <joaopaulo761@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -25,3 +25,4 @@ const val REQUEST_CHECK_SETTINGS = 2000
 const val REQUEST_IN_APP_UPDATE = 3000
 const val PLAY_GAMES_SIGN_IN = 5000
 const val PLAY_GAMES_ACHIEVEMENTS = 6000
+const val REQUEST_INSTALL_AERI_MODULE = 7000

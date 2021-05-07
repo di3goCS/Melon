@@ -2,7 +2,7 @@
  * This file is part of the UNES Open Source Project.
  * UNES is licensed under the GNU GPLv3.
  *
- * Copyright (c) 2019.  João Paulo Sena <joaopaulo761@gmail.com>
+ * Copyright (c) 2020. João Paulo Sena <joaopaulo761@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -28,39 +28,37 @@ import android.media.ThumbnailUtils
 import android.net.Uri
 import android.util.Base64
 import androidx.annotation.WorkerThread
+import androidx.hilt.work.HiltWorker
 import androidx.work.Constraints
 import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.Worker
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
-import com.forcetower.uefs.UApplication
 import com.forcetower.uefs.core.storage.database.UDatabase
 import com.forcetower.uefs.core.storage.network.UService
 import com.forcetower.uefs.core.util.ImgurUploader
 import com.forcetower.uefs.core.work.enqueue
+import dagger.assisted.Assisted
+import dagger.assisted.AssistedInject
 import okhttp3.OkHttpClient
 import timber.log.Timber
 import java.io.ByteArrayOutputStream
 import java.io.InputStream
 import java.util.UUID
-import javax.inject.Inject
 
-class UploadImageToStorage(
-    context: Context,
-    params: WorkerParameters
+@HiltWorker
+class UploadImageToStorage @AssistedInject constructor(
+    @Assisted context: Context,
+    @Assisted params: WorkerParameters,
+    private val client: OkHttpClient,
+    private val database: UDatabase,
+    private val service: UService
 ) : Worker(context, params) {
-    @Inject
-    lateinit var client: OkHttpClient
-    @Inject
-    lateinit var database: UDatabase
-    @Inject
-    lateinit var service: UService
 
     @SuppressLint("WrongThread")
     @WorkerThread
     override fun doWork(): Result {
-        (applicationContext as UApplication).component.inject(this)
         Timber.d("Started picture upload")
         val tUri = inputData.getString(URI) ?: return Result.failure()
 

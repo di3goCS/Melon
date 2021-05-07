@@ -2,7 +2,7 @@
  * This file is part of the UNES Open Source Project.
  * UNES is licensed under the GNU GPLv3.
  *
- * Copyright (c) 2019.  João Paulo Sena <joaopaulo761@gmail.com>
+ * Copyright (c) 2020. João Paulo Sena <joaopaulo761@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -26,30 +26,25 @@ import android.view.View
 import android.view.View.GONE
 import android.view.View.VISIBLE
 import android.view.ViewGroup
+import androidx.fragment.app.viewModels
 import androidx.lifecycle.Observer
 import com.forcetower.uefs.R
 import com.forcetower.uefs.architecture.service.bigtray.BigTrayService
-import com.forcetower.uefs.core.injection.Injectable
 import com.forcetower.uefs.core.model.bigtray.BigTrayData
 import com.forcetower.uefs.core.model.bigtray.isOpen
 import com.forcetower.uefs.core.model.bigtray.percentage
-import com.forcetower.uefs.core.vm.UViewModelFactory
 import com.forcetower.uefs.databinding.FragmentBigTrayBinding
 import com.forcetower.uefs.feature.shared.UFragment
 import com.forcetower.uefs.feature.shared.extensions.formatDateTime
-import com.forcetower.uefs.feature.shared.extensions.provideViewModel
-import javax.inject.Inject
+import dagger.hilt.android.AndroidEntryPoint
 
-class BigTrayFragment : UFragment(), Injectable {
-    @Inject
-    lateinit var factory: UViewModelFactory
-
-    private lateinit var viewModel: BigTrayViewModel
+@AndroidEntryPoint
+class BigTrayFragment : UFragment() {
+    private val viewModel: BigTrayViewModel by viewModels()
     private lateinit var binding: FragmentBigTrayBinding
     private var hasData = false
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View? {
-        viewModel = provideViewModel(factory)
         return FragmentBigTrayBinding.inflate(inflater, container, false).also {
             binding = it
         }.root
@@ -60,7 +55,7 @@ class BigTrayFragment : UFragment(), Injectable {
             textToolbarTitle.text = getString(R.string.label_big_tray)
             appBar.elevation = 0f
         }
-        binding.btnNotification.setOnClickListener { BigTrayService.startService(context!!) }
+        binding.btnNotification.setOnClickListener { BigTrayService.startService(requireContext()) }
     }
 
     override fun onStart() {

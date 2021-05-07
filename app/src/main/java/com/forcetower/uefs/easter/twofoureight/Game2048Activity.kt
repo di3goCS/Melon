@@ -2,7 +2,7 @@
  * This file is part of the UNES Open Source Project.
  * UNES is licensed under the GNU GPLv3.
  *
- * Copyright (c) 2019.  João Paulo Sena <joaopaulo761@gmail.com>
+ * Copyright (c) 2020. João Paulo Sena <joaopaulo761@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -24,47 +24,27 @@ import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import android.view.KeyEvent
-import android.view.WindowManager
-import androidx.fragment.app.Fragment
+import androidx.activity.viewModels
+import androidx.core.view.WindowCompat
 import com.forcetower.uefs.R
-import com.forcetower.uefs.core.vm.UViewModelFactory
 import com.forcetower.uefs.core.vm.UserSessionViewModel
 import com.forcetower.uefs.easter.twofoureight.tools.KeyListener
 import com.forcetower.uefs.feature.shared.UGameActivity
 import com.forcetower.uefs.feature.shared.extensions.config
-import com.forcetower.uefs.feature.shared.extensions.provideViewModel
 import com.google.android.material.snackbar.Snackbar
-import dagger.android.DispatchingAndroidInjector
-import dagger.android.support.HasSupportFragmentInjector
+import dagger.hilt.android.AndroidEntryPoint
 import timber.log.Timber
-import javax.inject.Inject
 
-class Game2048Activity : UGameActivity(), HasSupportFragmentInjector {
-    @Inject
-    lateinit var fragmentInjector: DispatchingAndroidInjector<Fragment>
-    @Inject
-    lateinit var factory: UViewModelFactory
-
-    private lateinit var sessionViewModel: UserSessionViewModel
-
-    override fun supportFragmentInjector() = fragmentInjector
+@AndroidEntryPoint
+class Game2048Activity : UGameActivity() {
+    private val sessionViewModel: UserSessionViewModel by viewModels()
 
     public override fun onCreate(savedInstanceState: Bundle?) {
         overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out)
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_game2048)
 
-        sessionViewModel = provideViewModel(factory)
-
-        val window = window
-        window.setFlags(
-            WindowManager.LayoutParams.FLAG_TRANSLUCENT_NAVIGATION,
-            WindowManager.LayoutParams.FLAG_TRANSLUCENT_NAVIGATION
-        )
-        window.setFlags(
-            WindowManager.LayoutParams.FLAG_TRANSLUCENT_STATUS,
-            WindowManager.LayoutParams.FLAG_TRANSLUCENT_STATUS
-        )
+        WindowCompat.setDecorFitsSystemWindows(window, false)
 
         if (savedInstanceState == null) {
             supportFragmentManager.beginTransaction()
@@ -79,10 +59,14 @@ class Game2048Activity : UGameActivity(), HasSupportFragmentInjector {
         revealAchievement(R.string.achievement_a_prtica_leva__perfeio)
     }
 
-    override fun showSnack(string: String, long: Boolean) {
-        val snack = Snackbar.make(findViewById(R.id.container), string, if (long) Snackbar.LENGTH_LONG else Snackbar.LENGTH_SHORT)
+    override fun showSnack(string: String, duration: Int) {
+        getSnackInstance(string, duration).show()
+    }
+
+    override fun getSnackInstance(string: String, duration: Int): Snackbar {
+        val snack = Snackbar.make(findViewById(R.id.container), string, duration)
         snack.config()
-        snack.show()
+        return snack
     }
 
     override fun onKeyDown(keyCode: Int, event: KeyEvent): Boolean {

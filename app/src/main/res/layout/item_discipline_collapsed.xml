@@ -3,7 +3,7 @@
   ~ This file is part of the UNES Open Source Project.
   ~ UNES is licensed under the GNU GPLv3.
   ~
-  ~ Copyright (c) 2019.  João Paulo Sena <joaopaulo761@gmail.com>
+  ~ Copyright (c) 2020. João Paulo Sena <joaopaulo761@gmail.com>
   ~
   ~ This program is free software: you can redistribute it and/or modify
   ~ it under the terms of the GNU General Public License as published by
@@ -29,7 +29,7 @@
             type="com.forcetower.uefs.feature.common.DisciplineActions"/>
         <variable
             name="clazzGroup"
-            type="com.forcetower.uefs.core.storage.database.accessors.ClassWithGroups"/>
+            type="com.forcetower.uefs.core.storage.database.aggregation.ClassFullWithGroup"/>
     </data>
 
     <com.google.android.material.card.MaterialCardView
@@ -79,7 +79,7 @@
                 app:layout_constraintEnd_toStartOf="@+id/guide_image_margin"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toTopOf="parent"
-                android:tint="@color/dis_04"/>
+                app:tint="@color/dis_04"/>
 
             <TextView
                 android:id="@+id/text_discipline_name"
@@ -95,7 +95,7 @@
                 app:layout_constraintEnd_toStartOf="@+id/guide_score"
                 app:layout_constraintStart_toStartOf="@+id/guide_image_margin"
                 app:layout_constraintTop_toTopOf="parent"
-                android:text="@{clazzGroup.discipline().name}"
+                android:text="@{clazzGroup.discipline.name}"
                 tools:text="Métodologia da Pesquisa e Desenvolvimento em Engenharia de Computação"/>
 
             <com.forcetower.uefs.widget.CircleProgressBar
@@ -146,7 +146,7 @@
                 app:disciplineGroupsGrades="@{clazzGroup.grades}"
                 android:nestedScrollingEnabled="false"
                 tools:itemCount="3"
-                tools:listitem="@layout/item_grade" />
+                tools:listitem="@layout/item_grade_old" />
 
             <TextView
                 android:id="@+id/text_label_final"

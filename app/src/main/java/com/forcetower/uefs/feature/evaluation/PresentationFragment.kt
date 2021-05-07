@@ -2,7 +2,7 @@
  * This file is part of the UNES Open Source Project.
  * UNES is licensed under the GNU GPLv3.
  *
- * Copyright (c) 2019.  João Paulo Sena <joaopaulo761@gmail.com>
+ * Copyright (c) 2020. João Paulo Sena <joaopaulo761@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -27,13 +27,14 @@ import android.view.View
 import android.view.ViewGroup
 import androidx.navigation.fragment.findNavController
 import com.forcetower.uefs.R
-import com.forcetower.uefs.core.injection.Injectable
 import com.forcetower.uefs.databinding.FragmentEvaluationPresentationBinding
 import com.forcetower.uefs.feature.information.InformationDialog
 import com.forcetower.uefs.feature.shared.UFragment
+import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 
-class PresentationFragment : UFragment(), Injectable {
+@AndroidEntryPoint
+class PresentationFragment : UFragment() {
     @Inject
     lateinit var preferences: SharedPreferences
     private lateinit var binding: FragmentEvaluationPresentationBinding

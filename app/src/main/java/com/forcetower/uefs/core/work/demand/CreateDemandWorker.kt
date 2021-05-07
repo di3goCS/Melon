@@ -2,7 +2,7 @@
  * This file is part of the UNES Open Source Project.
  * UNES is licensed under the GNU GPLv3.
  *
- * Copyright (c) 2019.  João Paulo Sena <joaopaulo761@gmail.com>
+ * Copyright (c) 2020. João Paulo Sena <joaopaulo761@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,31 +22,27 @@ package com.forcetower.uefs.core.work.demand
 
 import android.content.Context
 import androidx.annotation.WorkerThread
+import androidx.hilt.work.HiltWorker
 import androidx.work.BackoffPolicy
 import androidx.work.Constraints
 import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.Worker
 import androidx.work.WorkerParameters
-import com.forcetower.uefs.UApplication
 import com.forcetower.uefs.core.storage.repository.DemandRepository
 import com.forcetower.uefs.core.work.enqueueUnique
-import com.google.firebase.analytics.FirebaseAnalytics
+import dagger.assisted.Assisted
+import dagger.assisted.AssistedInject
 import java.util.concurrent.TimeUnit
-import javax.inject.Inject
 
-class CreateDemandWorker(
-    context: Context,
-    params: WorkerParameters
+@HiltWorker
+class CreateDemandWorker @AssistedInject constructor(
+    @Assisted context: Context,
+    @Assisted params: WorkerParameters,
+    private val repository: DemandRepository
 ) : Worker(context, params) {
-    @Inject
-    lateinit var repository: DemandRepository
-    @Inject
-    lateinit var analytics: FirebaseAnalytics
-
     @WorkerThread
     override fun doWork(): Result {
-        (applicationContext as UApplication).component.inject(this)
         repository.executeCreateDemand()
         return Result.success()
     }

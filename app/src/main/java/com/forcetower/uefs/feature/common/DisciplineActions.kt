@@ -2,7 +2,7 @@
  * This file is part of the UNES Open Source Project.
  * UNES is licensed under the GNU GPLv3.
  *
- * Copyright (c) 2019.  João Paulo Sena <joaopaulo761@gmail.com>
+ * Copyright (c) 2020. João Paulo Sena <joaopaulo761@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,9 +21,9 @@
 package com.forcetower.uefs.feature.common
 
 import com.forcetower.uefs.core.model.unes.ClassGroup
-import com.forcetower.uefs.core.storage.database.accessors.ClassWithGroups
+import com.forcetower.uefs.core.storage.database.aggregation.ClassFullWithGroup
 
 interface DisciplineActions {
-    fun classClicked(clazz: ClassWithGroups)
+    fun classClicked(clazz: ClassFullWithGroup)
     fun groupSelected(clazz: ClassGroup)
 }

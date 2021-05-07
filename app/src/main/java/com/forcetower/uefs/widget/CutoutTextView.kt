@@ -2,7 +2,7 @@
  * This file is part of the UNES Open Source Project.
  * UNES is licensed under the GNU GPLv3.
  *
- * Copyright (c) 2019.  João Paulo Sena <joaopaulo761@gmail.com>
+ * Copyright (c) 2020. João Paulo Sena <joaopaulo761@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -33,8 +33,8 @@ import android.text.TextPaint
 import android.util.AttributeSet
 import android.view.View
 import androidx.core.content.res.ResourcesCompat
+import com.forcetower.core.utils.ViewUtils
 import com.forcetower.uefs.R
-import com.forcetower.uefs.core.util.ViewUtils
 
 class CutoutTextView(ctx: Context, attrs: AttributeSet) : View(ctx, attrs) {
     private val textPaint: TextPaint = TextPaint(Paint.ANTI_ALIAS_FLAG)

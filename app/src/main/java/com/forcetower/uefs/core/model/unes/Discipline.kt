@@ -2,7 +2,7 @@
  * This file is part of the UNES Open Source Project.
  * UNES is licensed under the GNU GPLv3.
  *
- * Copyright (c) 2019.  João Paulo Sena <joaopaulo761@gmail.com>
+ * Copyright (c) 2020. João Paulo Sena <joaopaulo761@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -28,10 +28,12 @@ import com.forcetower.sagres.database.model.SagresDiscipline
 import com.google.gson.annotations.SerializedName
 import java.util.UUID
 
-@Entity(indices = [
-    Index(value = ["code"], unique = true),
-    Index(value = ["uuid"], unique = true)
-])
+@Entity(
+    indices = [
+        Index(value = ["code"], unique = true),
+        Index(value = ["uuid"], unique = true)
+    ]
+)
 data class Discipline(
     @PrimaryKey(autoGenerate = true)
     var uid: Long = 0,
@@ -50,6 +52,6 @@ data class Discipline(
         const val COLLECTION = "disciplines"
 
         fun fromSagres(discipline: SagresDiscipline) =
-                Discipline(name = discipline.name.trim(), code = discipline.code.trim(), credits = discipline.credits)
+            Discipline(name = discipline.name.trim(), code = discipline.code.trim(), credits = discipline.credits)
     }
 }

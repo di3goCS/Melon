@@ -2,7 +2,7 @@
  * This file is part of the UNES Open Source Project.
  * UNES is licensed under the GNU GPLv3.
  *
- * Copyright (c) 2019.  João Paulo Sena <joaopaulo761@gmail.com>
+ * Copyright (c) 2020. João Paulo Sena <joaopaulo761@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -25,33 +25,29 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import androidx.browser.customtabs.CustomTabColorSchemeParams
 import androidx.browser.customtabs.CustomTabsIntent
-import androidx.core.content.ContextCompat
-import androidx.lifecycle.Observer
+import androidx.fragment.app.viewModels
+import com.forcetower.core.lifecycle.EventObserver
+import com.forcetower.core.utils.ViewUtils
 import com.forcetower.uefs.R
-import com.forcetower.uefs.core.injection.Injectable
 import com.forcetower.uefs.core.model.unes.Contributor
 import com.forcetower.uefs.core.storage.resource.Resource
 import com.forcetower.uefs.core.storage.resource.Status
-import com.forcetower.uefs.core.vm.EventObserver
-import com.forcetower.uefs.core.vm.UViewModelFactory
 import com.forcetower.uefs.databinding.FragmentAboutContributorsBinding
 import com.forcetower.uefs.feature.shared.UFragment
-import com.forcetower.uefs.feature.shared.extensions.provideViewModel
 import com.forcetower.uefs.feature.web.CustomTabActivityHelper
+import dagger.hilt.android.AndroidEntryPoint
 import timber.log.Timber
-import javax.inject.Inject
 
-class ContributorsFragment : UFragment(), Injectable {
-    @Inject
-    lateinit var factory: UViewModelFactory
-    private lateinit var viewModel: ContributorViewModel
+@AndroidEntryPoint
+class ContributorsFragment : UFragment() {
+    private val viewModel: ContributorViewModel by viewModels()
 
     private lateinit var binding: FragmentAboutContributorsBinding
     private val adapter: ContributorAdapter by lazy { ContributorAdapter(viewModel) }
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View? {
-        viewModel = provideViewModel(factory)
         FragmentAboutContributorsBinding.inflate(inflater, container, false).also {
             binding = it
         }
@@ -63,10 +59,10 @@ class ContributorsFragment : UFragment(), Injectable {
         binding.recyclerContributors.adapter = adapter
     }
 
-    override fun onActivityCreated(savedInstanceState: Bundle?) {
-        super.onActivityCreated(savedInstanceState)
-        viewModel.contributorClickAction.observe(this, EventObserver { openLink(it) })
-        viewModel.contributors.observe(this, Observer { processContributors(it) })
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+        viewModel.contributorClickAction.observe(viewLifecycleOwner, EventObserver { openLink(it) })
+        viewModel.contributors.observe(viewLifecycleOwner, { processContributors(it) })
     }
 
     private fun processContributors(resource: Resource<List<Contributor>>?) {
@@ -92,9 +88,15 @@ class ContributorsFragment : UFragment(), Injectable {
         CustomTabActivityHelper.openCustomTab(
             requireActivity(),
             CustomTabsIntent.Builder()
-                .setToolbarColor(ContextCompat.getColor(requireContext(), R.color.blue_accent))
-                .addDefaultShareMenuItem()
+                .setDefaultColorSchemeParams(
+                    CustomTabColorSchemeParams
+                        .Builder()
+                        .setToolbarColor(ViewUtils.attributeColorUtils(requireContext(), R.attr.colorPrimary))
+                        .build()
+                )
+                .setShareState(CustomTabsIntent.SHARE_STATE_ON)
                 .build(),
-            Uri.parse(string))
+            Uri.parse(string)
+        )
     }
 }
